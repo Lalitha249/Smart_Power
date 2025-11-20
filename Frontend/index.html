@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartPower - Subscription</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- HERO HEADER -->
+    <div class="hero">
+        <h1 class="title">⚡ SmartPower</h1>
+        <p class="tagline">Smart Electricity Subscription System</p>
+    </div>
+
+    <!-- PLAN CARDS -->
+    <div class="plans-section">
+        <h2 class="section-title">Choose Your Plan</h2>
+
+        <div class="plan-cards">
+            <div class="plan-card basic" onclick="selectPlan('Basic')">
+                <h3>Basic</h3>
+                <p class="units">100 units / month</p>
+                <p class="price">₹650</p>
+                <button class="select-btn">Choose Plan</button>
+            </div>
+
+            <div class="plan-card standard" onclick="selectPlan('Standard')">
+                <h3>Standard</h3>
+                <p class="units">200 units / month</p>
+                <p class="price">₹1200</p>
+                <button class="select-btn">Choose Plan</button>
+            </div>
+
+            <div class="plan-card premium" onclick="selectPlan('Premium')">
+                <h3>Premium</h3>
+                <p class="units">400 units / month</p>
+                <p class="price">₹2200</p>
+                <button class="select-btn">Choose Plan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SUBSCRIPTION FORM -->
+    <div class="subscription-box">
+        <h2>Subscribe to a Plan</h2>
+
+        <div class="radio-group">
+            <label class="radio-option">
+                <input type="radio" name="plan" value="Basic">
+                <span>Basic — 100 units / ₹650</span>
+            </label>
+
+            <label class="radio-option">
+                <input type="radio" name="plan" value="Standard">
+                <span>Standard — 200 units / ₹1200</span>
+            </label>
+
+            <label class="radio-option">
+                <input type="radio" name="plan" value="Premium">
+                <span>Premium — 400 units / ₹2200</span>
+            </label>
+        </div>
+
+        <button id="subscribeBtn" class="subscribe-action">Subscribe</button>
+
+        <pre id="subscribeResult"></pre>
+    </div>
+
+    <!-- MINI DASHBOARD -->
+    <div class="dashboard-box">
+        <h2>Your Dashboard</h2>
+
+        <p class="dash-plan">Plan: <span id="planName">—</span></p>
+
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div id="usageProgress"></div>
+            </div>
+        </div>
+
+        <p class="dash-units">
+            <span id="units">0</span> / <span id="limit">0</span> units
+        </p>
+    </div>
+
+    <!-- BACKEND STATUS -->
+    <div class="status-section">
+        <h2>Backend Status</h2>
+        <button class="check-btn" onclick="checkBackend()">Check Backend</button>
+
+        <pre id="backendResponse">Waiting...</pre>
+    </div>
+
+    <script src="dashboard.js"></script>
+</body>
+
+</html>
