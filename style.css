@@ -1,0 +1,385 @@
+/* --- BASE --- */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    background: linear-gradient(135deg, #f2f5f9 0%, #e6ecf2 100%);
+    color: #222;
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+/* --- HERO HEADER --- */
+.hero {
+    background: linear-gradient(135deg, #2563eb, #0ea5e9);
+    padding: 50px 20px;
+    text-align: center;
+    color: white;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+    border-radius: 0 0 30px 30px;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M0,0 L100,0 L100,100 Z" fill="rgba(255,255,255,0.1)"/></svg>');
+    background-size: cover;
+}
+
+.title {
+    font-size: 42px;
+    margin: 0;
+    position: relative;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.tagline {
+    font-size: 18px;
+    margin-top: 10px;
+    opacity: 0.9;
+    position: relative;
+    font-weight: 300;
+}
+
+/* --- PLAN CARDS --- */
+.plans-section {
+    text-align: center;
+    margin-top: 40px;
+    padding: 0 20px;
+}
+
+.section-title {
+    font-size: 32px;
+    margin-bottom: 30px;
+    color: #1e293b;
+    position: relative;
+    display: inline-block;
+}
+
+.section-title::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80px;
+    height: 4px;
+    background: linear-gradient(90deg, #2563eb, #0ea5e9);
+    border-radius: 2px;
+}
+
+.plan-cards {
+    display: flex;
+    justify-content: center;
+    gap: 25px;
+    padding: 20px;
+    flex-wrap: wrap;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.plan-card {
+    width: 280px;
+    background: white;
+    padding: 30px 25px;
+    border-radius: 18px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    transition: 0.3s ease;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.plan-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 5px;
+}
+
+.plan-card:hover {
+    transform: translateY(-8px) scale(1.03);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+}
+
+.plan-card h3 {
+    font-size: 24px;
+    margin-bottom: 8px;
+}
+
+.units {
+    font-size: 15px;
+    color: #555;
+    margin-bottom: 15px;
+}
+
+.price {
+    font-size: 28px;
+    font-weight: bold;
+    margin: 12px 0;
+    color: #1e293b;
+}
+
+/* Plan Colors */
+.basic::before {
+    background: linear-gradient(90deg, #22c55e, #16a34a);
+}
+
+.standard::before {
+    background: linear-gradient(90deg, #3b82f6, #2563eb);
+}
+
+.premium::before {
+    background: linear-gradient(90deg, #8b5cf6, #7c3aed);
+}
+
+/* --- BUTTONS --- */
+.select-btn {
+    background: #2563eb;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    font-size: 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: 0.25s ease;
+    font-weight: 600;
+    width: 100%;
+    margin-top: 10px;
+}
+
+.select-btn:hover {
+    background: #1d4ed8;
+    transform: scale(1.05);
+}
+
+/* ============================= */
+/*   SUBSCRIPTION FORM           */
+/* ============================= */
+
+.subscription-box {
+    width: 90%;
+    max-width: 500px;
+    background: #ffffff;
+    padding: 30px;
+    margin: 40px auto 20px auto;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    text-align: center;
+    animation: fadeIn 0.6s ease;
+}
+
+.subscription-box h2 {
+    margin-bottom: 20px;
+    font-size: 24px;
+    color: #1e293b;
+}
+
+.radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.radio-option {
+    background: #f8fafc;
+    padding: 15px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: 0.3s ease;
+}
+
+.radio-option:hover {
+    border-color: #3b82f6;
+    background: #e8f0ff;
+}
+
+.radio-option input {
+    transform: scale(1.2);
+}
+
+.subscribe-action {
+    margin-top: 10px;
+    padding: 14px 30px;
+    font-size: 17px;
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    border: none;
+    color: white;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: 0.25s;
+    font-weight: 600;
+    width: 100%;
+}
+
+.subscribe-action:hover {
+    transform: scale(1.02);
+    background: linear-gradient(135deg, #1d4ed8, #2563eb);
+}
+
+#subscribeResult {
+    margin-top: 20px;
+    background: #f8fafc;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: left;
+    white-space: pre-wrap;
+    border: 1px solid #dbe1ea;
+    max-height: 200px;
+    overflow-y: auto;
+    font-family: monospace;
+}
+
+/* ============================= */
+/*       MINI DASHBOARD          */
+/* ============================= */
+
+.dashboard-box {
+    width: 90%;
+    max-width: 500px;
+    background: #ffffff;
+    padding: 30px;
+    margin: 20px auto 40px auto;
+    border-radius: 18px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    text-align: center;
+    animation: fadeIn 0.6s ease;
+}
+
+.dashboard-box h2 {
+    font-size: 26px;
+    margin-bottom: 20px;
+    color: #2563eb;
+}
+
+.dash-plan {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    color: #1e293b;
+}
+
+.progress-container {
+    width: 100%;
+    background: #e5e7eb;
+    border-radius: 12px;
+    height: 18px;
+    overflow: hidden;
+    margin-bottom: 15px;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.progress-bar {
+    width: 100%;
+    height: 100%;
+}
+
+#usageProgress {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #2563eb, #3b82f6);
+    transition: width 0.8s ease;
+    border-radius: 12px;
+}
+
+.dash-units {
+    font-size: 18px;
+    margin-top: 8px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+/* ============================= */
+/*      BACKEND STATUS           */
+/* ============================= */
+
+.status-section {
+    margin: 40px auto;
+    text-align: center;
+    padding: 0 20px;
+}
+
+.check-btn {
+    background: #f97316;
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    font-size: 17px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: 0.25s;
+    font-weight: 600;
+}
+
+.check-btn:hover {
+    background: #ea580c;
+    transform: scale(1.05);
+}
+
+#backendResponse {
+    width: 90%;
+    max-width: 700px;
+    margin: 20px auto;
+    background: #ffffff;
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid #ddd;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
+    text-align: left;
+    max-height: 300px;
+    overflow-y: auto;
+    font-family: monospace;
+}
+
+/* Fade-in animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .plan-cards {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .plan-card {
+        width: 100%;
+        max-width: 350px;
+    }
+
+    .hero {
+        padding: 40px 20px;
+    }
+
+    .title {
+        font-size: 36px;
+    }
+}
