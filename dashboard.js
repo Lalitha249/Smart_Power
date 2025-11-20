@@ -2,7 +2,8 @@
    CHECK BACKEND STATUS
    ============================================================ */
 function checkBackend() {
-    fetch("http://127.0.0.1:5000/")
+    fetch("http://127.0.0.1:5000/api/status")
+
         .then(res => res.json())
         .then(data => {
             document.getElementById("backendResponse").textContent =
