@@ -2,8 +2,7 @@
    CHECK BACKEND STATUS
    ============================================================ */
 function checkBackend() {
-    fetch("http://127.0.0.1:5000/api/status")
-
+    fetch("http://127.0.0.1:5000/")
         .then(res => res.json())
         .then(data => {
             document.getElementById("backendResponse").textContent =
@@ -20,12 +19,17 @@ function checkBackend() {
    ============================================================ */
 document.addEventListener('DOMContentLoaded', function() {
     updateMiniDashboard();
+    loadStatus(); // Load initial status from backend
+    setupRadioButtons();
     
-    // Set up subscription button
+    // Set up subscription button with POST request
     document.getElementById("subscribeBtn").addEventListener("click", subscribeToPlan);
     
-    // Set up radio buttons to sync with plan cards
-    setupRadioButtons();
+    // Initialize chart
+    initializeChart();
+    
+    // Update dashboard every 3 seconds
+    setInterval(loadStatus, 3000);
 });
 
 /* ============================================================
@@ -65,53 +69,130 @@ function selectPlan(plan) {
         selectedCard.style.transform = 'translateY(-5px)';
     }
     
-    // Update dashboard immediately
-    localStorage.setItem("selectedPlan", plan);
-    updateMiniDashboard();
-    
     // Show confirmation message
     document.getElementById("subscribeResult").textContent = 
         `✅ ${plan} plan selected. Click "Subscribe" to confirm.`;
 }
 
 /* ============================================================
-   SUBSCRIBE TO PLAN
+   SUBSCRIBE TO PLAN WITH BACKEND API CALL
    ============================================================ */
-function subscribeToPlan() {
-    const plan = document.querySelector('input[name="plan"]:checked');
+async function subscribeToPlan() {
+    const planElement = document.querySelector('input[name="plan"]:checked');
 
-    if (!plan) {
+    if (!planElement) {
         document.getElementById("subscribeResult").textContent =
             "❌ Please select a plan";
         return;
     }
 
-    // In a real application, this would be an API call
-    const mockResponse = {
-        status: "success",
-        selected_plan: plan.value,
-        message: "Subscription successful! Your plan is now active.",
-        subscription_id: "SUB-" + Math.floor(Math.random() * 10000),
-        start_date: new Date().toISOString().split('T')[0],
-        next_billing: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-    };
+    const plan = planElement.value;
 
-    // Display response
-    document.getElementById("subscribeResult").textContent =
-        JSON.stringify(mockResponse, null, 2);
+    try {
+        const res = await fetch("http://127.0.0.1:5000/subscribe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                user_id: "user1",
+                plan: plan
+            })
+        });
 
-    // Update dashboard with the new plan
-    localStorage.setItem("selectedPlan", plan.value);
-    updateMiniDashboard();
-    
-    // Show success message
-    setTimeout(() => {
-        alert(`🎉 Successfully subscribed to ${plan.value} plan!`);
-    }, 500);
+        const data = await res.json();
+        
+        // Display response
+        document.getElementById("subscribeResult").textContent =
+            JSON.stringify(data, null, 2);
+
+        console.log("Subscription response:", data);
+        alert("Subscription Activated!");
+
+        // Update dashboard with new plan
+        loadStatus();
+        
+    } catch (error) {
+        console.error("Subscription error:", error);
+        document.getElementById("subscribeResult").textContent =
+            "❌ Failed to subscribe. Check if backend is running.\nError: " + error.message;
+    }
 }
 
 /* ============================================================
-   UPDATE MINI DASHBOARD
+   LOAD STATUS FROM BACKEND API
+   ============================================================ */
+async function loadStatus() {
+    try {
+        const res = await fetch("http://127.0.0.1:5000/status/user1");
+        const data = await res.json();
+        
+        // Update dashboard with real data from backend
+        document.getElementById("planName").textContent = data.plan;
+        document.getElementById("usageProgress").style.width = data.progress_percent + "%";
+        document.getElementById("units").textContent = data.month_used;
+        document.getElementById("limit").textContent = data.plan_limit;
+        
+        // Color code based on usage
+        const percent = data.progress_percent;
+        if (percent > 90) {
+            document.getElementById("usageProgress").style.background = "linear-gradient(90deg, #ef4444, #dc2626)";
+        } else if (percent > 70) {
+            document.getElementById("usageProgress").style.background = "linear-gradient(90deg, #f59e0b, #d97706)";
+        } else {
+            document.getElementById("usageProgress").style.background = "linear-gradient(90deg, #2563eb, #3b82f6)";
+        }
+        
+    } catch (error) {
+        console.log("Backend not available, using mock data");
+        updateMiniDashboard(); // Fallback to mock data
+    }
+}
+
+/* ============================================================
+   INITIALIZE CHART.JS
+   ============================================================ */
+function initializeChart() {
+    const ctx = document.getElementById('usageChart');
+    if (!ctx) {
+        console.log("Chart canvas not found");
+        return;
+    }
+    
+    let usageChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Usage Over Time',
+                data: [],
+                borderColor: '#2563eb',
+                backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Electricity Usage Trend'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Units'
+                    }
+                }
+            }
+        }
+    });
+}
+
+/* ============================================================
+   FALLBACK: UPDATE MINI DASHBOARD (MOCK DATA)
    ============================================================ */
 function updateMiniDashboard() {
     // Read saved plan or load default
