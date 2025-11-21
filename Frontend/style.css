@@ -350,6 +350,27 @@ body {
     font-family: monospace;
 }
 
+/* ============================= */
+/*          CHART STYLES         */
+/* ============================= */
+.chart-box {
+    width: 90%;
+    max-width: 800px;
+    background: #ffffff;
+    padding: 30px;
+    margin: 20px auto;
+    border-radius: 18px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    text-align: center;
+    animation: fadeIn 0.6s ease;
+}
+
+.chart-box h2 {
+    font-size: 26px;
+    margin-bottom: 20px;
+    color: #2563eb;
+}
+
 /* Fade-in animation */
 @keyframes fadeIn {
     from {
