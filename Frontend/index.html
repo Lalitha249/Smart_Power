@@ -17,12 +17,6 @@
         <p class="tagline">Smart Electricity Subscription System</p>
     </div>
 
-    <!-- USAGE CHART -->
-    <div class="chart-box">
-        <h2>Usage Analytics</h2>
-        <canvas id="usageChart"></canvas>
-    </div>
-
     <!-- PLAN CARDS -->
     <div class="plans-section">
         <h2 class="section-title">Choose Your Plan</h2>
@@ -92,6 +86,22 @@
         <p class="dash-units">
             <span id="units">0</span> / <span id="limit">0</span> units
         </p>
+
+        <!-- AI Suggestion Box -->
+        <div id="aiSuggestion" style="margin-top: 15px; padding: 12px; background: #f0f9ff; border-radius: 8px; border-left: 4px solid #2563eb; font-size: 14px;">
+            <strong>⚡ AI Suggestion:</strong> Loading your usage analysis...
+        </div>
+
+        <!-- Add Usage Button -->
+        <button id="addUsageBtn" class="subscribe-action" style="margin-top: 15px; background: #10b981; width: 100%;">
+            ➕ Add Daily Usage
+        </button>
+    </div>
+
+    <!-- USAGE CHART -->
+    <div class="chart-box">
+        <h2>Usage Analytics</h2>
+        <canvas id="usageChart"></canvas>
     </div>
 
     <!-- BACKEND STATUS -->
