@@ -1,8 +1,15 @@
 /* ============================================================
+   GLOBAL CONSTANTS
+   ============================================================ */
+const BASE_URL = "http://127.0.0.1:5000";
+const USER_ID = "user1";
+
+/* ============================================================
    CHECK BACKEND STATUS
    ============================================================ */
 function checkBackend() {
-    fetch("http://127.0.0.1:5000/")
+    console.log("Checking backend connection...");
+    fetch(`${BASE_URL}/`)
         .then(res => {
             if (!res.ok) {
                 throw new Error(`HTTP error! status: ${res.status}`);
@@ -10,12 +17,14 @@ function checkBackend() {
             return res.json();
         })
         .then(data => {
+            console.log("Backend response:", data);
             document.getElementById("backendResponse").textContent =
                 JSON.stringify(data, null, 2);
         })
         .catch(err => {
+            console.error("Backend check failed:", err);
             document.getElementById("backendResponse").textContent =
-                "❌ Backend not running. Start the Node server and try again.\n\nError details: " + err.message;
+                "❌ Backend not connected. Error: " + err.message;
         });
 }
 
@@ -23,24 +32,30 @@ function checkBackend() {
    INITIALIZATION
    ============================================================ */
 document.addEventListener('DOMContentLoaded', function() {
-    console.log("SmartPower Dashboard Initialized");
+    console.log("SmartPower Frontend Initialized");
+    console.log("Backend URL:", BASE_URL);
     
     // Load initial data
-    updateMiniDashboard(); // Fallback mock data
-    loadStatus(); // Try to load from backend
+    loadStatus();
     setupRadioButtons();
     
-    // Set up subscription button with POST request
+    // Set up subscription button
     document.getElementById("subscribeBtn").addEventListener("click", subscribeToPlan);
+    
+    // Set up usage button
+    const addUsageBtn = document.getElementById("addUsageBtn");
+    if (addUsageBtn) {
+        addUsageBtn.addEventListener("click", addDailyUsage);
+    }
     
     // Initialize chart
     initializeChart();
     
-    // Update dashboard every 3 seconds
-    setInterval(loadStatus, 3000);
+    // Update dashboard every 5 seconds
+    setInterval(loadStatus, 5000);
     
-    // Load some mock chart data for demonstration
-    loadMockChartData();
+    // Test backend connection on startup
+    checkBackend();
 });
 
 /* ============================================================
@@ -61,13 +76,12 @@ function setupRadioButtons() {
    SELECT PLAN FUNCTION
    ============================================================ */
 function selectPlan(plan) {
-    // Update radio button selection
     const radioButton = document.querySelector(`input[value="${plan}"]`);
     if (radioButton) {
         radioButton.checked = true;
     }
     
-    // Visual feedback for selected plan
+    // Visual feedback
     const cards = document.querySelectorAll('.plan-card');
     cards.forEach(card => {
         card.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.1)';
@@ -80,13 +94,12 @@ function selectPlan(plan) {
         selectedCard.style.transform = 'translateY(-5px)';
     }
     
-    // Show confirmation message
     document.getElementById("subscribeResult").textContent = 
         `✅ ${plan} plan selected. Click "Subscribe" to confirm.`;
 }
 
 /* ============================================================
-   SUBSCRIBE TO PLAN WITH BACKEND API CALL
+   SUBSCRIBE TO PLAN
    ============================================================ */
 async function subscribeToPlan() {
     const planElement = document.querySelector('input[name="plan"]:checked');
@@ -97,79 +110,147 @@ async function subscribeToPlan() {
         return;
     }
 
-    const plan = planElement.value;
+    const planName = planElement.value;
 
     try {
-        console.log(`Subscribing to plan: ${plan}`);
+        console.log(`Subscribing to plan: ${planName}`);
         
-        const response = await fetch("http://127.0.0.1:5000/subscribe", {
+        const planDetails = getPlanDetails(planName);
+        
+        const response = await fetch(`${BASE_URL}/subscribe`, {
             method: "POST",
             headers: { 
                 "Content-Type": "application/json",
                 "Accept": "application/json"
             },
             body: JSON.stringify({
-                user_id: "user1",
-                plan: plan,
-                timestamp: new Date().toISOString()
+                user_id: USER_ID,
+                plan_name: planName,
+                plan_units: planDetails.units,
+                price: planDetails.price
             })
         });
 
-        // Check if response is OK
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
         
-        // Display response
         document.getElementById("subscribeResult").textContent =
             JSON.stringify(data, null, 2);
 
-        console.log("Subscription response:", data);
+        console.log("Subscription successful:", data);
         alert("✅ Subscription Activated!");
 
-        // Update dashboard with new plan
-        localStorage.setItem("selectedPlan", plan);
+        // Refresh dashboard
         loadStatus();
         
     } catch (error) {
-        console.error("Subscription error:", error);
-        
-        // Create mock response for demonstration
-        const mockResponse = {
-            status: "success",
-            selected_plan: plan,
-            message: "Subscription successful! (Mock - Backend not available)",
-            subscription_id: "SUB-" + Math.floor(Math.random() * 10000),
-            start_date: new Date().toISOString().split('T')[0],
-            next_billing: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            note: "This is mock data. Backend integration required."
-        };
-        
+        console.error("Subscription failed:", error);
         document.getElementById("subscribeResult").textContent =
-            JSON.stringify(mockResponse, null, 2);
-            
-        alert("✅ Subscription Activated! (Using mock data - backend not available)");
-        
-        // Update dashboard with mock data
-        localStorage.setItem("selectedPlan", plan);
-        updateMiniDashboard();
+            "❌ Failed to subscribe: " + error.message;
     }
 }
 
 /* ============================================================
-   LOAD STATUS FROM BACKEND API
+   GET PLAN DETAILS
+   ============================================================ */
+function getPlanDetails(planName) {
+    const plans = {
+        "Basic": { units: 100, price: 650 },
+        "Standard": { units: 200, price: 1200 },
+        "Premium": { units: 400, price: 2200 }
+    };
+    return plans[planName] || { units: 100, price: 650 };
+}
+
+/* ============================================================
+   LOAD STATUS FROM BACKEND
    ============================================================ */
 async function loadStatus() {
     try {
-        console.log("Fetching status from backend...");
+        console.log("Loading status from backend...");
         
-        const response = await fetch("http://127.0.0.1:5000/status/user1", {
-            method: "GET",
-            headers: {
+        const response = await fetch(`${BASE_URL}/status/${USER_ID}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log("Status data received:", data);
+        
+        updateDashboard(data);
+        
+    } catch (error) {
+        console.error("Failed to load status:", error);
+        updateDashboardWithMockData();
+    }
+}
+
+/* ============================================================
+   UPDATE DASHBOARD WITH REAL DATA
+   ============================================================ */
+function updateDashboard(data) {
+    document.getElementById("planName").textContent = data.plan_name || "Basic";
+    document.getElementById("usageProgress").style.width = (data.progress_percent || 0) + "%";
+    document.getElementById("units").textContent = data.month_used || 0;
+    document.getElementById("limit").textContent = data.plan_limit || 100;
+    
+    if (data.predicted_units) {
+        updateAISuggestion(data.predicted_units, data.plan_limit);
+    }
+    
+    const percent = data.progress_percent || 0;
+    updateProgressBarColor(percent);
+}
+
+/* ============================================================
+   UPDATE DASHBOARD WITH MOCK DATA
+   ============================================================ */
+function updateDashboardWithMockData() {
+    const selectedPlan = localStorage.getItem("selectedPlan") || "Basic";
+    let limit = 100;
+    if (selectedPlan === "Standard") limit = 200;
+    if (selectedPlan === "Premium") limit = 400;
+
+    const used = Math.floor(Math.random() * limit * 0.5);
+    const percent = Math.floor((used / limit) * 100);
+
+    document.getElementById("planName").textContent = selectedPlan;
+    document.getElementById("usageProgress").style.width = percent + "%";
+    document.getElementById("units").textContent = used;
+    document.getElementById("limit").textContent = limit;
+    
+    updateProgressBarColor(percent);
+    updateAISuggestion(used + 10, limit);
+}
+
+/* ============================================================
+   ADD DAILY USAGE
+   ============================================================ */
+async function addDailyUsage() {
+    try {
+        const units = parseFloat(prompt("Enter today's usage in units:", "0.5")) || 0.5;
+        
+        if (isNaN(units) || units <= 0) {
+            alert("Please enter a valid positive number");
+            return;
+        }
+        
+        console.log(`Adding usage: ${units} units`);
+        
+        const response = await fetch(`${BASE_URL}/usage`, {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json",
                 "Accept": "application/json"
-            }
+            },
+            body: JSON.stringify({
+                user_id: USER_ID,
+                units: units
+            })
         });
 
         if (!response.ok) {
@@ -177,40 +258,57 @@ async function loadStatus() {
         }
 
         const data = await response.json();
+        console.log("Usage added:", data);
         
-        console.log("Backend status data:", data);
-        
-        // Update dashboard with real data from backend
-        document.getElementById("planName").textContent = data.plan || "Basic";
-        document.getElementById("usageProgress").style.width = (data.progress_percent || 0) + "%";
-        document.getElementById("units").textContent = data.month_used || 0;
-        document.getElementById("limit").textContent = data.plan_limit || 100;
-        
-        // Color code based on usage
-        const percent = data.progress_percent || 0;
-        updateProgressBarColor(percent);
+        alert(`✅ Added ${units} units!`);
+        loadStatus();
         
     } catch (error) {
-        console.log("Backend not available, using mock data:", error.message);
-        updateMiniDashboard(); // Fallback to mock data
+        console.error("Failed to add usage:", error);
+        alert("❌ Failed to add usage. Check backend connection.");
     }
 }
 
 /* ============================================================
-   UPDATE PROGRESS BAR COLOR BASED ON USAGE
+   AI SUGGESTION
+   ============================================================ */
+function updateAISuggestion(predictedUnits, planLimit) {
+    const suggestionElement = document.getElementById("aiSuggestion");
+    if (!suggestionElement) return;
+    
+    if (predictedUnits > planLimit) {
+        suggestionElement.innerHTML = `<strong>⚡ AI Suggestion:</strong> Projected to exceed limit (${predictedUnits} units). Consider reducing usage.`;
+        suggestionElement.style.background = "#fef2f2";
+        suggestionElement.style.color = "#ef4444";
+    } else if (predictedUnits > planLimit * 0.8) {
+        suggestionElement.innerHTML = `<strong>⚡ AI Suggestion:</strong> Close to limit (${predictedUnits} units). Monitor usage.`;
+        suggestionElement.style.background = "#fffbeb";
+        suggestionElement.style.color = "#f59e0b";
+    } else {
+        suggestionElement.innerHTML = `<strong>⚡ AI Suggestion:</strong> Usage on track (${predictedUnits} units). Good job!`;
+        suggestionElement.style.background = "#f0fdf4";
+        suggestionElement.style.color = "#22c55e";
+    }
+}
+
+/* ============================================================
+   PROGRESS BAR COLOR
    ============================================================ */
 function updateProgressBarColor(percent) {
+    const progressBar = document.getElementById("usageProgress");
+    if (!progressBar) return;
+    
     if (percent > 90) {
-        document.getElementById("usageProgress").style.background = "linear-gradient(90deg, #ef4444, #dc2626)";
+        progressBar.style.background = "linear-gradient(90deg, #ef4444, #dc2626)";
     } else if (percent > 70) {
-        document.getElementById("usageProgress").style.background = "linear-gradient(90deg, #f59e0b, #d97706)";
+        progressBar.style.background = "linear-gradient(90deg, #f59e0b, #d97706)";
     } else {
-        document.getElementById("usageProgress").style.background = "linear-gradient(90deg, #2563eb, #3b82f6)";
+        progressBar.style.background = "linear-gradient(90deg, #2563eb, #3b82f6)";
     }
 }
 
 /* ============================================================
-   INITIALIZE CHART.JS WITH MOCK DATA
+   INITIALIZE CHART
    ============================================================ */
 let usageChart = null;
 
@@ -221,27 +319,18 @@ function initializeChart() {
         return;
     }
     
-    // Destroy existing chart if it exists
-    if (usageChart) {
-        usageChart.destroy();
-    }
-    
     usageChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'],
+            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
             datasets: [{
-                label: 'Electricity Usage (Units)',
+                label: 'Daily Usage (Units)',
                 data: [12, 19, 15, 22, 18, 25, 20],
                 borderColor: '#2563eb',
                 backgroundColor: 'rgba(37, 99, 235, 0.1)',
                 borderWidth: 3,
                 tension: 0.4,
-                fill: true,
-                pointBackgroundColor: '#2563eb',
-                pointBorderColor: '#ffffff',
-                pointBorderWidth: 2,
-                pointRadius: 5
+                fill: true
             }]
         },
         options: {
@@ -249,121 +338,14 @@ function initializeChart() {
             plugins: {
                 title: {
                     display: true,
-                    text: 'Weekly Electricity Usage Trend',
-                    font: {
-                        size: 16,
-                        weight: 'bold'
-                    }
-                },
-                legend: {
-                    display: true,
-                    position: 'top'
+                    text: 'Weekly Electricity Usage'
                 }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Units Consumed',
-                        font: {
-                            weight: 'bold'
-                        }
-                    },
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.1)'
-                    }
-                },
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Days',
-                        font: {
-                            weight: 'bold'
-                        }
-                    },
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.1)'
-                    }
-                }
-            },
-            animation: {
-                duration: 1000,
-                easing: 'easeInOutQuart'
             }
         }
     });
 }
 
-/* ============================================================
-   LOAD MOCK CHART DATA (FOR DEMONSTRATION)
-   ============================================================ */
-function loadMockChartData() {
-    // This function would typically fetch real data from backend
-    // For now, we'll use mock data that updates periodically
-    setInterval(() => {
-        if (usageChart) {
-            // Add some random variation to make the chart look alive
-            const newData = usageChart.data.datasets[0].data.map(value => 
-                Math.max(5, value + Math.floor(Math.random() * 6 - 3))
-            );
-            usageChart.data.datasets[0].data = newData;
-            usageChart.update('none'); // Update without animation
-        }
-    }, 5000); // Update every 5 seconds
-}
-
-/* ============================================================
-   FALLBACK: UPDATE MINI DASHBOARD (MOCK DATA)
-   ============================================================ */
-function updateMiniDashboard() {
-    // Read saved plan or load default
-    const selectedPlan = localStorage.getItem("selectedPlan") || "Basic";
-
-    // Show plan name
-    document.getElementById("planName").textContent = selectedPlan;
-
-    // Assign limits based on plan
-    let limit = 100;
-    if (selectedPlan === "Standard") limit = 200;
-    if (selectedPlan === "Premium") limit = 400;
-
-    // Set limit
-    document.getElementById("limit").textContent = limit;
-
-    // Generate realistic usage data
-    const today = new Date();
-    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-    const dayOfMonth = today.getDate();
-    
-    // Calculate expected usage based on day of month
-    const expectedUsage = Math.floor((limit / daysInMonth) * dayOfMonth);
-    
-    // Add some randomness but keep it realistic
-    const variation = Math.floor(expectedUsage * 0.2);
-    const used = Math.min(limit, Math.max(0, expectedUsage + (Math.random() * variation * 2 - variation)));
-    
-    document.getElementById("units").textContent = Math.round(used);
-
-    // Progress % calculation
-    const percent = Math.floor((used / limit) * 100);
-    document.getElementById("usageProgress").style.width = percent + "%";
-    
-    // Color code based on usage
-    updateProgressBarColor(percent);
-    
-    console.log(`Dashboard updated: ${used}/${limit} units (${percent}%) - Plan: ${selectedPlan}`);
-}
-
-/* ============================================================
-   MANUAL STATUS REFRESH (FOR TESTING)
-   ============================================================ */
-function refreshDashboard() {
-    console.log("Manual dashboard refresh");
-    loadStatus();
-}
-
-// Make functions globally available for HTML onclick events
+// Global functions
 window.selectPlan = selectPlan;
 window.checkBackend = checkBackend;
-window.refreshDashboard = refreshDashboard;
+window.addDailyUsage = addDailyUsage;
