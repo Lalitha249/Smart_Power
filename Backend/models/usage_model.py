@@ -23,3 +23,4 @@ def add_usage_to_db(user_id, units):
     write_db(db)
 
     return True
+
