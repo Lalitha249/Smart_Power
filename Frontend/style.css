@@ -371,6 +371,18 @@ body {
     color: #2563eb;
 }
 
+/* AI Suggestion Styles */
+#aiSuggestion {
+    transition: all 0.3s ease;
+    font-size: 14px;
+    line-height: 1.4;
+    margin-top: 15px;
+    padding: 12px;
+    background: #f0f9ff;
+    border-radius: 8px;
+    border-left: 4px solid #2563eb;
+}
+
 /* Fade-in animation */
 @keyframes fadeIn {
     from {
@@ -402,5 +414,12 @@ body {
 
     .title {
         font-size: 36px;
+    }
+
+    .subscription-box,
+    .dashboard-box,
+    .chart-box {
+        width: 95%;
+        padding: 20px;
     }
 }
