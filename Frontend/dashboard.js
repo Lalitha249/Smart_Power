@@ -3,7 +3,12 @@
    ============================================================ */
 function checkBackend() {
     fetch("http://127.0.0.1:5000/")
-        .then(res => res.json())
+        .then(res => {
+            if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
+            return res.json();
+        })
         .then(data => {
             document.getElementById("backendResponse").textContent =
                 JSON.stringify(data, null, 2);
@@ -18,8 +23,11 @@ function checkBackend() {
    INITIALIZATION
    ============================================================ */
 document.addEventListener('DOMContentLoaded', function() {
-    updateMiniDashboard();
-    loadStatus(); // Load initial status from backend
+    console.log("SmartPower Dashboard Initialized");
+    
+    // Load initial data
+    updateMiniDashboard(); // Fallback mock data
+    loadStatus(); // Try to load from backend
     setupRadioButtons();
     
     // Set up subscription button with POST request
@@ -30,6 +38,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Update dashboard every 3 seconds
     setInterval(loadStatus, 3000);
+    
+    // Load some mock chart data for demonstration
+    loadMockChartData();
 });
 
 /* ============================================================
@@ -89,31 +100,61 @@ async function subscribeToPlan() {
     const plan = planElement.value;
 
     try {
-        const res = await fetch("http://127.0.0.1:5000/subscribe", {
+        console.log(`Subscribing to plan: ${plan}`);
+        
+        const response = await fetch("http://127.0.0.1:5000/subscribe", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            },
             body: JSON.stringify({
                 user_id: "user1",
-                plan: plan
+                plan: plan,
+                timestamp: new Date().toISOString()
             })
         });
 
-        const data = await res.json();
+        // Check if response is OK
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
         
         // Display response
         document.getElementById("subscribeResult").textContent =
             JSON.stringify(data, null, 2);
 
         console.log("Subscription response:", data);
-        alert("Subscription Activated!");
+        alert("✅ Subscription Activated!");
 
         // Update dashboard with new plan
+        localStorage.setItem("selectedPlan", plan);
         loadStatus();
         
     } catch (error) {
         console.error("Subscription error:", error);
+        
+        // Create mock response for demonstration
+        const mockResponse = {
+            status: "success",
+            selected_plan: plan,
+            message: "Subscription successful! (Mock - Backend not available)",
+            subscription_id: "SUB-" + Math.floor(Math.random() * 10000),
+            start_date: new Date().toISOString().split('T')[0],
+            next_billing: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            note: "This is mock data. Backend integration required."
+        };
+        
         document.getElementById("subscribeResult").textContent =
-            "❌ Failed to subscribe. Check if backend is running.\nError: " + error.message;
+            JSON.stringify(mockResponse, null, 2);
+            
+        alert("✅ Subscription Activated! (Using mock data - backend not available)");
+        
+        // Update dashboard with mock data
+        localStorage.setItem("selectedPlan", plan);
+        updateMiniDashboard();
     }
 }
 
@@ -122,34 +163,57 @@ async function subscribeToPlan() {
    ============================================================ */
 async function loadStatus() {
     try {
-        const res = await fetch("http://127.0.0.1:5000/status/user1");
-        const data = await res.json();
+        console.log("Fetching status from backend...");
+        
+        const response = await fetch("http://127.0.0.1:5000/status/user1", {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        console.log("Backend status data:", data);
         
         // Update dashboard with real data from backend
-        document.getElementById("planName").textContent = data.plan;
-        document.getElementById("usageProgress").style.width = data.progress_percent + "%";
-        document.getElementById("units").textContent = data.month_used;
-        document.getElementById("limit").textContent = data.plan_limit;
+        document.getElementById("planName").textContent = data.plan || "Basic";
+        document.getElementById("usageProgress").style.width = (data.progress_percent || 0) + "%";
+        document.getElementById("units").textContent = data.month_used || 0;
+        document.getElementById("limit").textContent = data.plan_limit || 100;
         
         // Color code based on usage
-        const percent = data.progress_percent;
-        if (percent > 90) {
-            document.getElementById("usageProgress").style.background = "linear-gradient(90deg, #ef4444, #dc2626)";
-        } else if (percent > 70) {
-            document.getElementById("usageProgress").style.background = "linear-gradient(90deg, #f59e0b, #d97706)";
-        } else {
-            document.getElementById("usageProgress").style.background = "linear-gradient(90deg, #2563eb, #3b82f6)";
-        }
+        const percent = data.progress_percent || 0;
+        updateProgressBarColor(percent);
         
     } catch (error) {
-        console.log("Backend not available, using mock data");
+        console.log("Backend not available, using mock data:", error.message);
         updateMiniDashboard(); // Fallback to mock data
     }
 }
 
 /* ============================================================
-   INITIALIZE CHART.JS
+   UPDATE PROGRESS BAR COLOR BASED ON USAGE
    ============================================================ */
+function updateProgressBarColor(percent) {
+    if (percent > 90) {
+        document.getElementById("usageProgress").style.background = "linear-gradient(90deg, #ef4444, #dc2626)";
+    } else if (percent > 70) {
+        document.getElementById("usageProgress").style.background = "linear-gradient(90deg, #f59e0b, #d97706)";
+    } else {
+        document.getElementById("usageProgress").style.background = "linear-gradient(90deg, #2563eb, #3b82f6)";
+    }
+}
+
+/* ============================================================
+   INITIALIZE CHART.JS WITH MOCK DATA
+   ============================================================ */
+let usageChart = null;
+
 function initializeChart() {
     const ctx = document.getElementById('usageChart');
     if (!ctx) {
@@ -157,17 +221,27 @@ function initializeChart() {
         return;
     }
     
-    let usageChart = new Chart(ctx, {
+    // Destroy existing chart if it exists
+    if (usageChart) {
+        usageChart.destroy();
+    }
+    
+    usageChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: [],
+            labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'],
             datasets: [{
-                label: 'Usage Over Time',
-                data: [],
+                label: 'Electricity Usage (Units)',
+                data: [12, 19, 15, 22, 18, 25, 20],
                 borderColor: '#2563eb',
                 backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                borderWidth: 3,
                 tension: 0.4,
-                fill: true
+                fill: true,
+                pointBackgroundColor: '#2563eb',
+                pointBorderColor: '#ffffff',
+                pointBorderWidth: 2,
+                pointRadius: 5
             }]
         },
         options: {
@@ -175,7 +249,15 @@ function initializeChart() {
             plugins: {
                 title: {
                     display: true,
-                    text: 'Electricity Usage Trend'
+                    text: 'Weekly Electricity Usage Trend',
+                    font: {
+                        size: 16,
+                        weight: 'bold'
+                    }
+                },
+                legend: {
+                    display: true,
+                    position: 'top'
                 }
             },
             scales: {
@@ -183,12 +265,52 @@ function initializeChart() {
                     beginAtZero: true,
                     title: {
                         display: true,
-                        text: 'Units'
+                        text: 'Units Consumed',
+                        font: {
+                            weight: 'bold'
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Days',
+                        font: {
+                            weight: 'bold'
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)'
                     }
                 }
+            },
+            animation: {
+                duration: 1000,
+                easing: 'easeInOutQuart'
             }
         }
     });
+}
+
+/* ============================================================
+   LOAD MOCK CHART DATA (FOR DEMONSTRATION)
+   ============================================================ */
+function loadMockChartData() {
+    // This function would typically fetch real data from backend
+    // For now, we'll use mock data that updates periodically
+    setInterval(() => {
+        if (usageChart) {
+            // Add some random variation to make the chart look alive
+            const newData = usageChart.data.datasets[0].data.map(value => 
+                Math.max(5, value + Math.floor(Math.random() * 6 - 3))
+            );
+            usageChart.data.datasets[0].data = newData;
+            usageChart.update('none'); // Update without animation
+        }
+    }, 5000); // Update every 5 seconds
 }
 
 /* ============================================================
@@ -228,11 +350,20 @@ function updateMiniDashboard() {
     document.getElementById("usageProgress").style.width = percent + "%";
     
     // Color code based on usage
-    if (percent > 90) {
-        document.getElementById("usageProgress").style.background = "linear-gradient(90deg, #ef4444, #dc2626)";
-    } else if (percent > 70) {
-        document.getElementById("usageProgress").style.background = "linear-gradient(90deg, #f59e0b, #d97706)";
-    } else {
-        document.getElementById("usageProgress").style.background = "linear-gradient(90deg, #2563eb, #3b82f6)";
-    }
+    updateProgressBarColor(percent);
+    
+    console.log(`Dashboard updated: ${used}/${limit} units (${percent}%) - Plan: ${selectedPlan}`);
 }
+
+/* ============================================================
+   MANUAL STATUS REFRESH (FOR TESTING)
+   ============================================================ */
+function refreshDashboard() {
+    console.log("Manual dashboard refresh");
+    loadStatus();
+}
+
+// Make functions globally available for HTML onclick events
+window.selectPlan = selectPlan;
+window.checkBackend = checkBackend;
+window.refreshDashboard = refreshDashboard;
