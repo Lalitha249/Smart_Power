@@ -7,10 +7,10 @@
   ],
   "subscriptions": {
     "user1": {
-      "plan_name": "Standard",
-      "plan_units": 200,
-      "price": 1200.0,
-      "start_ts": "2025-11-22T14:06:25.245019+00:00"
+      "plan_name": "Basic",
+      "plan_units": 100,
+      "price": 99.0,
+      "start_ts": "2025-11-24T17:00:40.894540+00:00"
     }
   },
   "usage": {
@@ -23,6 +23,9 @@
       },
       "2025-11-22": {
         "units": 0.5
+      },
+      "2025-11-24": {
+        "units": 6.0
       }
     }
   }
