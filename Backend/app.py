@@ -4,6 +4,10 @@ import json
 from filelock import FileLock
 from pathlib import Path
 from datetime import datetime, timezone
+from ML.ai_energy_coach import get_energy_suggestion
+from ML.predict_service import predict_next_usage
+
+
 import logging
 
 import logging
@@ -524,6 +528,39 @@ def alerts(user_id):
         alerts = ["Everything looks normal. 👍"]
 
     return jsonify({"alerts": alerts}), 200
+
+@app.get("/api/get-energy-suggestion")
+def api_energy_suggestion():
+    try:
+        with open("db.json", "r") as f:
+            data = json.load(f)
+
+        usage = data.get("usage_history", {})
+        plan_units = data.get("plan", {}).get("units", 100)
+
+        suggestion = get_energy_suggestion(usage, plan_units)
+        
+        return jsonify({"suggestion": suggestion})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+@app.get("/api/predict_next_usage")
+def api_predict_usage():
+    try:
+        with open("db.json", "r") as f:
+            data = json.load(f)
+
+        usage = data.get("usage_history", {})
+        daily_values = list(usage.values())
+
+        predicted = predict_next_usage(daily_values)
+
+        return jsonify({"predicted_usage": predicted})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 # ---------------------------------------------
 # RUN APP
