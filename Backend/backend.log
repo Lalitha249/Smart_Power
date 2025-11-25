@@ -1,0 +1,76 @@
+2025-11-25 18:18:00,069 - WARNING -  * Debugger is active!
+2025-11-25 18:18:00,072 - INFO -  * Debugger PIN: 102-874-256
+2025-11-25 18:18:00,134 - WARNING -  * Debugger is active!
+2025-11-25 18:18:00,138 - INFO -  * Debugger PIN: 102-874-256
+2025-11-25 18:18:13,728 - INFO - [STATUS] Request for user: user1
+2025-11-25 18:18:13,728 - INFO - 127.0.0.1 - - [25/Nov/2025 18:18:13] "GET /status/user1 HTTP/1.1" 200 -
+2025-11-25 18:22:32,466 - INFO -  * Detected change in 'C:\\Users\\lalit\\SmartPower\\backend\\app.py', reloading
+2025-11-25 18:22:32,535 - INFO -  * Detected change in 'C:\\Users\\lalit\\SmartPower\\backend\\app.py', reloading
+2025-11-25 18:22:32,823 - WARNING -  * Debugger is active!
+2025-11-25 18:22:32,825 - INFO -  * Debugger PIN: 102-874-256
+2025-11-25 18:22:33,264 - WARNING -  * Debugger is active!
+2025-11-25 18:22:33,269 - INFO -  * Debugger PIN: 102-874-256
+2025-11-25 18:24:54,203 - INFO -  * Detected change in 'C:\\Users\\lalit\\SmartPower\\backend\\app.py', reloading
+2025-11-25 18:24:54,321 - INFO -  * Detected change in 'C:\\Users\\lalit\\SmartPower\\backend\\app.py', reloading
+2025-11-25 18:24:54,650 - WARNING -  * Debugger is active!
+2025-11-25 18:24:54,666 - INFO -  * Debugger PIN: 102-874-256
+2025-11-25 18:24:54,976 - WARNING -  * Debugger is active!
+2025-11-25 18:24:54,976 - INFO -  * Debugger PIN: 102-874-256
+2025-11-25 18:27:03,621 - INFO -  * Detected change in 'C:\\Users\\lalit\\SmartPower\\backend\\app.py', reloading
+2025-11-25 18:27:03,868 - INFO -  * Detected change in 'C:\\Users\\lalit\\SmartPower\\backend\\app.py', reloading
+2025-11-25 18:27:04,353 - WARNING -  * Debugger is active!
+2025-11-25 18:27:04,368 - INFO -  * Debugger PIN: 102-874-256
+2025-11-25 18:27:04,417 - WARNING -  * Debugger is active!
+2025-11-25 18:27:04,421 - INFO -  * Debugger PIN: 102-874-256
+2025-11-25 18:28:03,301 - INFO -  * Detected change in 'C:\\Users\\lalit\\SmartPower\\backend\\app.py', reloading
+2025-11-25 18:28:03,624 - WARNING -  * Debugger is active!
+2025-11-25 18:28:03,624 - INFO -  * Debugger PIN: 102-874-256
+2025-11-25 18:28:03,749 - INFO -  * Detected change in 'C:\\Users\\lalit\\SmartPower\\backend\\app.py', reloading
+2025-11-25 18:28:04,249 - WARNING -  * Debugger is active!
+2025-11-25 18:28:04,250 - INFO -  * Debugger PIN: 102-874-256
+2025-11-25 18:28:59,511 - INFO - [STATUS] Request for user: user1
+2025-11-25 18:28:59,515 - INFO - 127.0.0.1 - - [25/Nov/2025 18:28:59] "GET /status/user1 HTTP/1.1" 200 -
+2025-11-25 18:30:06,848 - INFO - [USAGE] Request: {'user_id': 'user1', 'units': 2.5}
+2025-11-25 18:30:06,854 - INFO - 127.0.0.1 - - [25/Nov/2025 18:30:06] "POST /usage HTTP/1.1" 200 -
+2025-11-25 18:32:19,192 - INFO - 127.0.0.1 - - [25/Nov/2025 18:32:19] "GET / HTTP/1.1" 200 -
+2025-11-25 18:33:14,928 - INFO - [SUBSCRIBE] Request for user: test1
+2025-11-25 18:33:14,931 - INFO - 127.0.0.1 - - [25/Nov/2025 18:33:14] "[35m[1mPOST /subscribe HTTP/1.1[0m" 201 -
+2025-11-25 18:34:08,088 - INFO - [USAGE] Request: {'user_id': 'test1', 'units': 5}
+2025-11-25 18:34:08,093 - INFO - 127.0.0.1 - - [25/Nov/2025 18:34:08] "POST /usage HTTP/1.1" 200 -
+2025-11-25 18:34:53,148 - INFO - [STATUS] Request for user: test1
+2025-11-25 18:34:53,148 - INFO - 127.0.0.1 - - [25/Nov/2025 18:34:53] "GET /status/test1 HTTP/1.1" 200 -
+2025-11-25 18:35:10,636 - INFO - [USAGE HISTORY] Request for user: test1
+2025-11-25 18:35:10,640 - INFO - 127.0.0.1 - - [25/Nov/2025 18:35:10] "GET /usage-history/test1 HTTP/1.1" 200 -
+2025-11-25 18:35:25,090 - INFO - [GET SUBSCRIPTION] Request for user: test1
+2025-11-25 18:35:25,093 - INFO - 127.0.0.1 - - [25/Nov/2025 18:35:25] "GET /subscription/test1 HTTP/1.1" 200 -
+2025-11-25 18:35:52,668 - INFO - [UPDATE] Updating subscription for user: test1
+2025-11-25 18:35:52,675 - INFO - 127.0.0.1 - - [25/Nov/2025 18:35:52] "POST /update/test1 HTTP/1.1" 200 -
+2025-11-25 18:43:57,382 - INFO -  * Detected change in 'C:\\Users\\lalit\\SmartPower\\backend\\app.py', reloading
+2025-11-25 18:43:57,864 - WARNING -  * Debugger is active!
+2025-11-25 18:43:57,864 - INFO -  * Debugger PIN: 102-874-256
+2025-11-25 18:44:10,355 - INFO - [USAGE-ADD] Request: {'user_id': 'user1', 'units': 5, 'date': '2025-11-10'}
+2025-11-25 18:44:10,365 - INFO - 127.0.0.1 - - [25/Nov/2025 18:44:10] "POST /usage/add HTTP/1.1" 200 -
+2025-11-25 18:46:23,475 - INFO - [USAGE HISTORY] Request for user: user1
+2025-11-25 18:46:23,492 - INFO - 127.0.0.1 - - [25/Nov/2025 18:46:23] "GET /usage-history/user1 HTTP/1.1" 200 -
+2025-11-25 18:47:14,693 - INFO - [STATUS] Request for user: user1
+2025-11-25 18:47:14,700 - INFO - 127.0.0.1 - - [25/Nov/2025 18:47:14] "GET /status/user1 HTTP/1.1" 200 -
+2025-11-25 18:52:00,626 - INFO -  * Detected change in 'C:\\Users\\lalit\\SmartPower\\backend\\app.py', reloading
+2025-11-25 18:52:01,023 - WARNING -  * Debugger is active!
+2025-11-25 18:52:01,025 - INFO -  * Debugger PIN: 102-874-256
+2025-11-25 18:52:25,788 - INFO - [COACH] Request for user: user1
+2025-11-25 18:52:25,802 - INFO - 127.0.0.1 - - [25/Nov/2025 18:52:25] "GET /coach/user1 HTTP/1.1" 200 -
+2025-11-25 18:57:46,165 - INFO -  * Detected change in 'C:\\Users\\lalit\\SmartPower\\backend\\app.py', reloading
+2025-11-25 18:57:46,563 - WARNING -  * Debugger is active!
+2025-11-25 18:57:46,575 - INFO -  * Debugger PIN: 102-874-256
+2025-11-25 18:58:02,586 - INFO - [PREDICT-ADVANCED] Request for user: user1
+2025-11-25 18:58:02,590 - INFO - 127.0.0.1 - - [25/Nov/2025 18:58:02] "GET /predict-advanced/user1 HTTP/1.1" 200 -
+2025-11-25 19:01:02,980 - INFO -  * Detected change in 'C:\\Users\\lalit\\SmartPower\\backend\\app.py', reloading
+2025-11-25 19:01:03,383 - WARNING -  * Debugger is active!
+2025-11-25 19:01:03,383 - INFO -  * Debugger PIN: 102-874-256
+2025-11-25 19:01:15,958 - INFO - [ADMIN] Analytics request
+2025-11-25 19:01:15,968 - INFO - 127.0.0.1 - - [25/Nov/2025 19:01:15] "GET /admin/analytics HTTP/1.1" 200 -
+2025-11-25 19:04:22,703 - INFO -  * Detected change in 'C:\\Users\\lalit\\SmartPower\\backend\\app.py', reloading
+2025-11-25 19:04:23,048 - WARNING -  * Debugger is active!
+2025-11-25 19:04:23,051 - INFO -  * Debugger PIN: 102-874-256
+2025-11-25 19:04:34,320 - INFO - [ALERTS] Request for user: user1
+2025-11-25 19:04:34,320 - INFO - 127.0.0.1 - - [25/Nov/2025 19:04:34] "GET /alerts/user1 HTTP/1.1" 200 -
