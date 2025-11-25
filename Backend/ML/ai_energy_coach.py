@@ -1,21 +1,15 @@
-# ML/ai_energy_coach.py
+def get_energy_suggestion(usage_history, plan_units):
+    if not usage_history:
+        return "No usage data available. Add usage to get suggestions."
 
-def get_energy_suggestion(daily_usage, plan_units):
-    """
-    Rule-based AI Energy Coach
-    """
+    daily_vals = list(usage_history.values())
+    avg = sum(daily_vals) / len(daily_vals)
 
-    total_used = sum(daily_usage.values())
-    percentage = (total_used / plan_units) * 100
-
-    if percentage < 50:
-        return "Good job! You are consuming efficiently. Keep going!"
-    
-    elif percentage < 80:
-        return "Usage is increasing. Try turning off unnecessary fans & lights."
-    
-    elif percentage < 100:
-        return "⚠️ You are close to your plan limit. Reduce consumption in peak hours (6 – 9 PM)."
-    
+    if avg > 12:
+        return "Your energy usage is very high. Consider reducing AC usage or large appliances."
+    elif avg > 8:
+        return "Your usage is slightly high. Try to optimise fan, fridge and washing machine timings."
+    elif avg < 3:
+        return "Excellent energy-saving! Keep up your efficient habits."
     else:
-        return "❗ You exceeded your plan. Consider upgrading to a higher plan next month."
+        return "Your usage is normal. Maintain this pattern."
