@@ -66,6 +66,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // initial load
     loadStatus();
     loadUsageHistoryAndFillChart();
+    
+    // Load energy suggestion on startup
+    loadEnergySuggestion();
 
     // periodic update
     setInterval(loadStatus, 5000);
@@ -166,6 +169,10 @@ async function subscribeToPlan() {
         console.error("Subscription failed:", error);
         const res = $id("subscribeResult");
         if (res) res.textContent = "❌ Failed to subscribe: " + error.message;
+        
+        // Show error in debug area too
+        const dbg = $id("backendResponse");
+        if (dbg) dbg.textContent = "Error: " + error.message;
     }
 }
 
@@ -198,6 +205,10 @@ async function loadStatus() {
     } catch (error) {
         console.error("Failed to load status:", error);
         updateDashboardWithMockData();
+        
+        // Show error in UI
+        const dbg = $id("backendResponse");
+        if (dbg) dbg.textContent = "Error loading status: " + error.message;
     }
 }
 
@@ -267,7 +278,7 @@ function updateDashboardWithMockData() {
 }
 
 /* ============================================================
-   ADD DAILY USAGE
+   ADD DAILY USAGE - UPDATED WITH DATE
    ============================================================ */
 async function addDailyUsage() {
     try {
@@ -280,10 +291,18 @@ async function addDailyUsage() {
         }
 
         console.log(`Adding usage: ${units} units`);
+        
+        // ✅ TASK: Include date in the request
+        const todayIso = new Date().toISOString().slice(0,10);
+        
         const response = await fetch(`${BASE_URL}/usage`, {
             method: "POST",
             headers: { "Content-Type": "application/json", "Accept": "application/json" },
-            body: JSON.stringify({ user_id: USER_ID, units: units })
+            body: JSON.stringify({ 
+                user_id: USER_ID, 
+                units: units, 
+                date: todayIso  // ✅ Added date field
+            })
         });
 
         if (!response.ok) {
@@ -301,6 +320,10 @@ async function addDailyUsage() {
     } catch (error) {
         console.error("Failed to add usage:", error);
         alert("❌ Failed to add usage. Check backend connection.");
+        
+        // ✅ TASK: Show error in UI clearly
+        const dbg = $id("subscribeResult");
+        if (dbg) dbg.textContent = "Error adding usage: " + error.message;
     }
 }
 
@@ -362,6 +385,61 @@ function notifyUser(message) {
     area.style.background = "#fffbeb";
     area.style.color = "#92400e";
     area.style.border = "1px solid #fed7aa";
+}
+
+/* ============================================================
+   ML ENDPOINTS TESTING - NEW FUNCTION
+   ============================================================ */
+async function testMlEndpoints() {
+    console.log("Testing ML endpoints...");
+    
+    try {
+        // Test predict next usage
+        const res1 = await fetch(`${BASE_URL}/api/predict_next_usage`);
+        const predictData = await res1.json();
+        console.log('predict next:', predictData);
+        
+        // Test energy suggestion
+        const res2 = await fetch(`${BASE_URL}/api/get-energy-suggestion`);
+        const suggestionData = await res2.json();
+        console.log('energy suggestion:', suggestionData);
+        
+        // Show results in backend response area
+        const el = $id("backendResponse");
+        if (el) {
+            el.textContent = `ML Test Results:\nPredict: ${JSON.stringify(predictData)}\nSuggestion: ${JSON.stringify(suggestionData)}`;
+        }
+        
+    } catch (error) {
+        console.error("ML endpoints test failed:", error);
+        const el = $id("backendResponse");
+        if (el) el.textContent = "ML Test Error: " + error.message;
+    }
+}
+
+/* ============================================================
+   LOAD ENERGY SUGGESTION - NEW FUNCTION
+   ============================================================ */
+async function loadEnergySuggestion() {
+    try {
+        const response = await fetch(`${BASE_URL}/api/get-energy-suggestion`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        
+        const data = await response.json();
+        console.log("Energy suggestion received:", data);
+        
+        // Display in AI suggestion area or create new element
+        const suggestionElement = $id("aiSuggestion");
+        if (suggestionElement && data.suggestion) {
+            suggestionElement.innerHTML = `<strong>⚡ Energy Tip:</strong> ${data.suggestion}`;
+            suggestionElement.style.background = "#f0f9ff";
+            suggestionElement.style.color = "#1e40af";
+        }
+        
+    } catch (error) {
+        console.warn("Could not load energy suggestion:", error);
+        // Keep existing AI suggestion if ML fails
+    }
 }
 
 /* ============================================================
@@ -467,3 +545,4 @@ async function loadUsageHistoryAndFillChart() {
 window.selectPlan = selectPlan;
 window.checkBackend = checkBackend;
 window.addDailyUsage = addDailyUsage;
+window.testMlEndpoints = testMlEndpoints; // ✅ Expose ML testing function
