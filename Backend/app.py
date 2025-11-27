@@ -36,13 +36,9 @@ CORS(app)
 # ----------------------------------------------------
 @app.before_request
 def log_request():
-    print("🔥🔥🔥 INCOMING REQUEST 🔥🔥🔥")
-    print("URL:", request.url)
-    print("Method:", request.method)
-    print("JSON:", request.get_json(silent=True))
-    print("Args:", request.args)
-
-
+    logging.info(f"🔥 Incoming Request: {request.method} {request.url}")
+    logging.info(f"JSON Body: {request.get_json(silent=True)}")
+    logging.info(f"Query Params: {dict(request.args)}")
 # ---------------------------------------------
 # DB HELPERS
 # ---------------------------------------------
@@ -78,12 +74,9 @@ def predict_stub():
 # ---------------------------------------------
 @app.route("/subscribe", methods=["POST"])
 def subscribe():
-    print("🔥 /subscribe called")
+    logging.info("🔥 /subscribe called")
     logging.info(f"[SUBSCRIBE] Request for user: {request.get_json(silent=True).get('user_id') if request.get_json(silent=True) else None}")
-
-
     data = request.get_json() or {}
-
     user_id = data.get("user_id")
     plan_name = data.get("plan_name")
     plan_units = data.get("plan_units")
@@ -131,9 +124,8 @@ def subscribe():
 # ---------------------------------------------
 @app.route("/usage/add", methods=["POST"])
 def usage_add_specific_date():
-    print("🔥 /usage/add called")
+    logging.info("🔥 /usage/add called")
     logging.info(f"[USAGE-ADD] Request: {request.get_json()}")
-
     data = request.get_json() or {}
     user_id = data.get("user_id")
     units = data.get("units")
@@ -216,7 +208,7 @@ def usage_add_today():
 # ---------------------------------------------
 @app.route("/status/<user_id>", methods=["GET"])
 def status(user_id):
-    print(f"🔥 /status/{user_id} called")
+    logging.info(f"🔥 /status/{user_id} called")
     logging.info(f"[STATUS] Request for user: {user_id}")
     db = read_db()
     subs = db.get("subscriptions", {})
@@ -266,7 +258,7 @@ def status(user_id):
 # ---------------------------------------------
 @app.route("/usage-history/<user_id>", methods=["GET"])
 def usage_history_raw(user_id):
-    print(f"🔥 /usage-history/{user_id} called")
+    logging.info(f"🔥 /usage-history/{user_id} called")
     logging.info(f"[USAGE HISTORY] Request for user: {user_id}")
     db = read_db()
     usage_all = db.get("usage", {})
@@ -277,9 +269,8 @@ def usage_history_raw(user_id):
 # ---------------------------------------------
 @app.route("/coach/<user_id>", methods=["GET"])
 def coach(user_id):
-    print(f"🔥 /coach/{user_id} called")
+    logging.info(f"🔥 /coach/{user_id} called")
     logging.info(f"[COACH] Request for user: {user_id}")
-
     db = read_db()
     usage_all = db.get("usage", {})
 
@@ -324,7 +315,7 @@ def coach(user_id):
 # ---------------------------------------------
 @app.route("/subscription/<user_id>", methods=["GET"])
 def get_subscription(user_id):
-    print(f"🔥 /subscription/{user_id} called")
+    logging.info("🔥 /subscribe called")
     logging.info(f"[GET SUBSCRIPTION] Request for user: {user_id}")
 
     db = read_db()
@@ -340,9 +331,8 @@ def get_subscription(user_id):
 # ---------------------------------------------
 @app.route("/update/<user_id>", methods=["POST"])
 def update_subscription(user_id):
-    print(f"🔥 /update/{user_id} called")
+    logging.info(f"🔥 /update/{user_id} called")
     logging.info(f"[UPDATE] Updating subscription for user: {user_id}")
-
     db = read_db()
     subs = db.get("subscriptions", {})
 
@@ -384,9 +374,8 @@ def update_subscription(user_id):
 # -------------------------------------------------------------
 @app.route("/predict-advanced/<user_id>", methods=["GET"])
 def predict_advanced(user_id):
-    print(f"🔥 /predict-advanced/{user_id} called")
+    logging.info(f"🔥 /predict-advanced/{user_id} called")
     logging.info(f"[PREDICT-ADVANCED] Request for user: {user_id}")
-
     db = read_db()
     usage_all = db.get("usage", {})
     user_usage = usage_all.get(user_id, {})
@@ -436,9 +425,8 @@ def predict_advanced(user_id):
 # -------------------------------------------------------------
 @app.route("/admin/analytics", methods=["GET"])
 def admin_analytics():
-    print("🔥 /admin/analytics called")
+    logging.info("🔥 /admin/analytics called")
     logging.info("[ADMIN] Analytics request")
-
     db = read_db()
     subs = db.get("subscriptions", {})
     usage_all = db.get("usage", {})
@@ -493,9 +481,8 @@ def admin_analytics():
 # -------------------------------------------------------------
 @app.route("/alerts/<user_id>", methods=["GET"])
 def alerts(user_id):
-    print(f"🔥 /alerts/{user_id} called")
+    logging.info(f"🔥 /alerts/{user_id} called")
     logging.info(f"[ALERTS] Request for user: {user_id}")
-
     db = read_db()
     subs = db.get("subscriptions", {})
     usage_all = db.get("usage", {})
@@ -567,45 +554,75 @@ def alerts(user_id):
 @app.get("/api/get-energy-suggestion")
 def api_energy_suggestion():
     try:
+        user_id = request.args.get("user_id", "user1")
+
         data = read_db()
+        usage_all = data.get("usage", {})
+        subs_all = data.get("subscriptions", {})
 
-        usage = data.get("usage", {})
-        user_usage = usage.get("user1", {})  # change user if needed
+        # ----------- VALIDATION -----------
+        if user_id not in usage_all:
+            return jsonify({"error": "User not found"}), 404
 
-        # flatten values into {0: units1, 1: units2, ...}
+        if user_id not in subs_all:
+            return jsonify({"error": "User subscription not found"}), 404
+
+        user_usage = usage_all[user_id]
+
+        if not user_usage:
+            return jsonify({"error": "No usage history for this user"}), 400
+        # ----------------------------------
+
+        # convert dict --> {0: units1, 1: units2, ...}
         numeric_usage = {
             idx: (rec["units"] if isinstance(rec, dict) else rec)
             for idx, rec in enumerate(user_usage.values())
         }
 
-        plan_units = data.get("subscriptions", {}).get("user1", {}).get("plan_units", 100)
-
+        plan_units = subs_all[user_id].get("plan_units", 100)
         suggestion = get_energy_suggestion(numeric_usage, plan_units)
 
-        return jsonify({"suggestion": suggestion})
+        return jsonify({
+            "user_id": user_id,
+            "suggestion": suggestion
+        })
 
     except Exception as e:
+        logging.error(f"[ERROR] get-energy-suggestion: {str(e)}")
         return jsonify({"error": str(e)}), 500
-
-
+    
 @app.get("/api/predict_next_usage")
 def api_predict_usage():
     try:
-        data = read_db()
-        usage = data.get("usage", {})
+        user_id = request.args.get("user_id", "user1")
 
-        user_usage = usage.get("user1", {})  # change later if needed
+        data = read_db()
+        usage_all = data.get("usage", {})
+
+        # ----------- VALIDATION -----------
+        if user_id not in usage_all:
+            return jsonify({"error": "User not found"}), 404
+
+        user_usage = usage_all[user_id]
+
+        if not user_usage:
+            return jsonify({"error": "No usage history for this user"}), 400
+        # ----------------------------------
 
         daily_values = [
-            v["units"] if isinstance(v, dict) else v
-            for v in user_usage.values()
+            rec["units"] if isinstance(rec, dict) else rec
+            for rec in user_usage.values()
         ]
 
         predicted = predict_next_usage(daily_values)
 
-        return jsonify({"predicted_usage": predicted})
+        return jsonify({
+            "user_id": user_id,
+            "predicted_usage": predicted
+        })
 
     except Exception as e:
+        logging.error(f"[ERROR] predict_next_usage: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 # ---------------------------------------------
