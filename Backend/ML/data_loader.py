@@ -38,7 +38,7 @@ def build_training_table(min_days=3):
         if len(daily) < min_days:
             continue
         # we'll create sliding windows: use last 7 days as features
-        window = 7
+        window = 3
         for i in range(window, len(daily)):
             x = daily[i-window:i]   # last 7 days
             # target: next 30-days projection from avg daily of window
