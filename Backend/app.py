@@ -6,10 +6,6 @@ from pathlib import Path
 from datetime import datetime, timezone
 from ML.ai_energy_coach import get_energy_suggestion
 from ML.predict_service import predict_next_usage
-
-
-import logging
-
 import logging
 
 # ----------------------------------------------------------
@@ -139,7 +135,6 @@ def usage_add_specific_date():
     logging.info(f"[USAGE-ADD] Request: {request.get_json()}")
 
     data = request.get_json() or {}
-
     user_id = data.get("user_id")
     units = data.get("units")
     date = data.get("date")  # YYYY-MM-DD
@@ -174,6 +169,47 @@ def usage_add_specific_date():
     write_db(db)
 
     return jsonify({"message": "Usage updated"}), 200
+
+# ---------------------------------------------
+# USAGE — TODAY'S DATE (Frontend expects /usage)
+# ---------------------------------------------
+@app.route("/usage", methods=["POST"])
+def usage_add_today():
+    data = request.get_json() or {}
+    user_id = data.get("user_id")
+    units = data.get("units")
+
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+    if units is None:
+        return jsonify({"error": "units is required"}), 400
+
+    try:
+        units = float(units)
+        if units <= 0:
+            return jsonify({"error": "units must be > 0"}), 400
+    except:
+        return jsonify({"error": "units must be a number"}), 400
+
+    today = datetime.now().date().isoformat()
+
+    db = read_db()
+    usage_all = db.get("usage", {})
+
+    if user_id not in usage_all:
+        usage_all[user_id] = {}
+
+    usage_all[user_id][today] = {"units": units}
+
+    db["usage"] = usage_all
+    write_db(db)
+
+    return jsonify({
+        "message": "Usage added",
+        "date": today,
+        "units": units
+    }), 201
+
 
 # ---------------------------------------------
 # STATUS
@@ -343,7 +379,6 @@ def update_subscription(user_id):
     write_db(db)
 
     return jsonify({"message": "Subscription updated", "updated_data": subs[user_id]}), 200
-
 # -------------------------------------------------------------
 # TASK 5 — ADVANCED PREDICTION API
 # -------------------------------------------------------------
@@ -532,27 +567,39 @@ def alerts(user_id):
 @app.get("/api/get-energy-suggestion")
 def api_energy_suggestion():
     try:
-        with open("db.json", "r") as f:
-            data = json.load(f)
+        data = read_db()
 
-        usage = data.get("usage_history", {})
-        plan_units = data.get("plan", {}).get("units", 100)
+        usage = data.get("usage", {})
+        user_usage = usage.get("user1", {})  # change user if needed
 
-        suggestion = get_energy_suggestion(usage, plan_units)
-        
+        # flatten values into {0: units1, 1: units2, ...}
+        numeric_usage = {
+            idx: (rec["units"] if isinstance(rec, dict) else rec)
+            for idx, rec in enumerate(user_usage.values())
+        }
+
+        plan_units = data.get("subscriptions", {}).get("user1", {}).get("plan_units", 100)
+
+        suggestion = get_energy_suggestion(numeric_usage, plan_units)
+
         return jsonify({"suggestion": suggestion})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    
+
+
 @app.get("/api/predict_next_usage")
 def api_predict_usage():
     try:
-        with open("db.json", "r") as f:
-            data = json.load(f)
+        data = read_db()
+        usage = data.get("usage", {})
 
-        usage = data.get("usage_history", {})
-        daily_values = list(usage.values())
+        user_usage = usage.get("user1", {})  # change later if needed
+
+        daily_values = [
+            v["units"] if isinstance(v, dict) else v
+            for v in user_usage.values()
+        ]
 
         predicted = predict_next_usage(daily_values)
 
@@ -560,7 +607,6 @@ def api_predict_usage():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 # ---------------------------------------------
 # RUN APP
