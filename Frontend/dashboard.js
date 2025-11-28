@@ -16,6 +16,8 @@ function $id(id) {
    ============================================================ */
 function checkBackend() {
     console.log("Checking backend connection...");
+    showMessage("🔍 Checking backend connection...", "info");
+    
     fetch(`${BASE_URL}/`)
         .then(res => {
             if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
@@ -25,11 +27,13 @@ function checkBackend() {
             console.log("Backend response:", data);
             const el = $id("backendResponse");
             if (el) el.textContent = JSON.stringify(data, null, 2);
+            showMessage("✅ Backend is running", "success");
         })
         .catch(err => {
             console.error("Backend check failed:", err);
             const el = $id("backendResponse");
             if (el) el.textContent = "❌ Backend not connected. Error: " + err.message;
+            showMessage("❌ Backend connection failed", "error");
         });
 }
 
@@ -40,12 +44,11 @@ document.addEventListener('DOMContentLoaded', function () {
     console.log("SmartPower Frontend Initialized");
     console.log("Backend URL:", BASE_URL);
 
-    // Restore selected plan visual state (if any)
+    // Restore selected plan visual state
     const savedPlan = localStorage.getItem("selectedPlan");
     if (savedPlan) {
         const radio = document.querySelector(`input[name="plan"][value="${savedPlan}"]`);
         if (radio) radio.checked = true;
-        // highlight card visually
         const card = document.querySelector(`.plan-card.${savedPlan.toLowerCase()}`);
         if (card) {
             card.style.boxShadow = '0 12px 32px rgba(0, 0, 0, 0.2)';
@@ -53,7 +56,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Defensive: make sure elements exist before attaching listeners
+    // Setup event listeners
     const subscribeBtn = $id("subscribeBtn");
     if (subscribeBtn) subscribeBtn.addEventListener("click", subscribeToPlan);
 
@@ -63,17 +66,11 @@ document.addEventListener('DOMContentLoaded', function () {
     setupRadioButtons();
     initializeChart();
 
-    // initial load
+    // Load initial data
     loadStatus();
     loadUsageHistoryAndFillChart();
-    
-    // Load energy suggestion on startup
-    loadEnergySuggestion();
 
-    // periodic update
-    setInterval(loadStatus, 5000);
-
-    // check backend once
+    // Check backend
     checkBackend();
 });
 
@@ -95,14 +92,11 @@ function setupRadioButtons() {
    SELECT PLAN FUNCTION
    ============================================================ */
 function selectPlan(plan) {
-    // mark radio
     const radioButton = document.querySelector(`input[name="plan"][value="${plan}"]`);
     if (radioButton) radioButton.checked = true;
 
-    // store selection for persistence
     localStorage.setItem("selectedPlan", plan);
 
-    // visual feedback on cards (don't change markup)
     const cards = document.querySelectorAll('.plan-card');
     cards.forEach(card => {
         card.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.1)';
@@ -115,18 +109,16 @@ function selectPlan(plan) {
         selectedCard.style.transform = 'translateY(-5px)';
     }
 
-    const res = $id("subscribeResult");
-    if (res) res.textContent = `✅ ${plan} plan selected. Click "Subscribe" to confirm.`;
+    showMessage(`✅ ${plan} plan selected. Click "Subscribe" to confirm.`, "success");
 }
 
 /* ============================================================
-   SUBSCRIBE TO PLAN
+   SUBSCRIBE TO PLAN WITH LOADING STATE
    ============================================================ */
 async function subscribeToPlan() {
     const planElement = document.querySelector('input[name="plan"]:checked');
     if (!planElement) {
-        const res = $id("subscribeResult");
-        if (res) res.textContent = "❌ Please select a plan";
+        showMessage("❌ Please select a plan first", "error");
         return;
     }
 
@@ -135,6 +127,14 @@ async function subscribeToPlan() {
 
     try {
         console.log(`Subscribing to plan: ${planName}`);
+        
+        // ✅ TASK 8: Add loading state for button
+        const subscribeBtn = $id("subscribeBtn");
+        const originalText = subscribeBtn.textContent;
+        subscribeBtn.textContent = "🔄 Subscribing...";
+        subscribeBtn.disabled = true;
+        
+        showMessage("🔄 Processing subscription...", "info");
 
         const response = await fetch(`${BASE_URL}/subscribe`, {
             method: "POST",
@@ -155,24 +155,25 @@ async function subscribeToPlan() {
         const data = await response.json();
         console.log("Subscription successful:", data);
 
-        const res = $id("subscribeResult");
-        if (res) res.textContent = JSON.stringify(data, null, 2);
-
-        // persist selected plan
+        showMessage(`✅ Successfully subscribed to ${planName} plan!`, "success");
+        
         localStorage.setItem("selectedPlan", planName);
 
-        alert("✅ Subscription Activated!");
+        // Reset button state
+        subscribeBtn.textContent = originalText;
+        subscribeBtn.disabled = false;
 
-        // reload dashboard state
         await loadStatus();
+        await loadAIDisplay();
+        
     } catch (error) {
         console.error("Subscription failed:", error);
-        const res = $id("subscribeResult");
-        if (res) res.textContent = "❌ Failed to subscribe: " + error.message;
+        showMessage(`❌ Failed to subscribe: ${error.message}`, "error");
         
-        // Show error in debug area too
-        const dbg = $id("backendResponse");
-        if (dbg) dbg.textContent = "Error: " + error.message;
+        // Reset button on error
+        const subscribeBtn = $id("subscribeBtn");
+        subscribeBtn.textContent = "Subscribe";
+        subscribeBtn.disabled = false;
     }
 }
 
@@ -202,13 +203,14 @@ async function loadStatus() {
         console.log("Status data received:", data);
 
         updateDashboard(data);
+        
+        // ✅ TASK 3: Load AI display after status
+        await loadAIDisplay();
+        
     } catch (error) {
         console.error("Failed to load status:", error);
         updateDashboardWithMockData();
-        
-        // Show error in UI
-        const dbg = $id("backendResponse");
-        if (dbg) dbg.textContent = "Error loading status: " + error.message;
+        showMessage("⚠️ Using cached data - backend unavailable", "warning");
     }
 }
 
@@ -216,7 +218,6 @@ async function loadStatus() {
    UPDATE DASHBOARD
    ============================================================ */
 function updateDashboard(data) {
-    // If backend returns null plan, keep selectedPlan
     if (data.plan_name) {
         localStorage.setItem("selectedPlan", data.plan_name);
     }
@@ -228,22 +229,22 @@ function updateDashboard(data) {
 
     if (planNameEl) planNameEl.textContent = data.plan_name || localStorage.getItem("selectedPlan") || "—";
     
-    // Safe progress calculation
     const progressPercent = data.plan_limit > 0 ? Math.min(100, (data.month_used / data.plan_limit) * 100) : 0;
     
     if (usageProgressEl) usageProgressEl.style.width = progressPercent + "%";
     if (unitsEl) unitsEl.textContent = (data.month_used !== undefined ? data.month_used : 0);
     if (limitEl) limitEl.textContent = (data.plan_limit !== undefined ? data.plan_limit : 0);
 
-    // AI suggestion
-    if (data.predicted_units !== undefined) {
-        updateAISuggestion(data.predicted_units, data.plan_limit || 0);
+    // ✅ TASK 6: Reward Points
+    const rewardEl = $id("rewardPoints");
+    if (rewardEl) {
+        let points = 0;
+        if (data.plan_limit && data.month_used < 0.8 * data.plan_limit) points = 10;
+        rewardEl.textContent = `🎁 Reward points: ${points}`;
     }
 
-    // progress bar color + notifications
     updateProgressBarColor(progressPercent);
 
-    // notify if nearing/exceeded limit
     if (progressPercent >= 100) {
         notifyUser("⚠️ You have exceeded your monthly plan limit!");
     } else if (progressPercent >= 80) {
@@ -274,35 +275,30 @@ function updateDashboardWithMockData() {
     if (limitEl) limitEl.textContent = limit;
 
     updateProgressBarColor(percent);
-    updateAISuggestion(used + 10, limit);
 }
 
 /* ============================================================
-   ADD DAILY USAGE - UPDATED WITH DATE
+   ADD DAILY USAGE - TASK 1: UPDATED WITH /usage/add
    ============================================================ */
 async function addDailyUsage() {
     try {
         const raw = prompt("Enter today's usage in units (e.g. 0.5):", "0.5");
-        if (raw === null) return; // user cancelled
+        if (raw === null) return;
         const units = parseFloat(raw);
         if (isNaN(units) || units <= 0) {
             alert("Please enter a valid positive number");
             return;
         }
 
-        console.log(`Adding usage: ${units} units`);
-        
-        // ✅ TASK: Include date in the request
-        const todayIso = new Date().toISOString().slice(0,10);
-        
-        const response = await fetch(`${BASE_URL}/usage`, {
+        // ✅ TASK 1: Include date and use /usage/add endpoint
+        const date = new Date().toISOString().slice(0,10);
+        console.log(`Adding usage: ${units} units for ${date}`);
+
+        // ✅ TASK 1: Changed from /usage to /usage/add
+        const response = await fetch(`${BASE_URL}/usage/add`, {
             method: "POST",
             headers: { "Content-Type": "application/json", "Accept": "application/json" },
-            body: JSON.stringify({ 
-                user_id: USER_ID, 
-                units: units, 
-                date: todayIso  // ✅ Added date field
-            })
+            body: JSON.stringify({ user_id: USER_ID, units: units, date: date })
         });
 
         if (!response.ok) {
@@ -312,57 +308,150 @@ async function addDailyUsage() {
 
         const data = await response.json();
         console.log("Usage added:", data);
-        alert(`✅ Added ${units} units!`);
+        alert(`✅ Added ${units} units for ${date}!`);
 
         // refresh status & history/chart
         await loadStatus();
         await loadUsageHistoryAndFillChart();
+        
     } catch (error) {
         console.error("Failed to add usage:", error);
         alert("❌ Failed to add usage. Check backend connection.");
-        
-        // ✅ TASK: Show error in UI clearly
-        const dbg = $id("subscribeResult");
-        if (dbg) dbg.textContent = "Error adding usage: " + error.message;
+        showMessage(`❌ Failed to add usage: ${error.message}`, "error");
     }
 }
 
 /* ============================================================
-   AI SUGGESTION
+   LOAD AI DISPLAY - TASK 3: IMPLEMENT AI ENDPOINTS
    ============================================================ */
-function updateAISuggestion(predictedUnits, planLimit) {
-    const suggestionElement = $id("aiSuggestion");
-    if (!suggestionElement) return;
+async function loadAIDisplay() {
+    try {
+        console.log("Loading AI suggestions...");
+        
+        // ✅ TASK 3: Coach suggestions
+        const sRes = await fetch(`${BASE_URL}/coach/${USER_ID}`);
+        const sJson = sRes.ok ? await sRes.json() : null;
+        const suggestion = sJson && sJson.suggestions ? sJson.suggestions[0] : "No suggestion available";
 
-    if (!planLimit || planLimit === 0) {
-        suggestionElement.innerHTML = `<strong>⚡ AI Suggestion:</strong> Not enough data to provide suggestion.`;
-        suggestionElement.style.background = "#f0f9ff";
-        suggestionElement.style.color = "#2563eb";
-        return;
-    }
+        // ✅ TASK 3: Advanced prediction
+        const pRes = await fetch(`${BASE_URL}/predict-advanced/${USER_ID}`);
+        const pJson = pRes.ok ? await pRes.json() : null;
 
-    if (predictedUnits > planLimit) {
-        suggestionElement.innerHTML = `<strong>⚡ AI Suggestion:</strong> Projected to exceed limit (${predictedUnits} units). Consider reducing usage.`;
-        suggestionElement.style.background = "#fef2f2";
-        suggestionElement.style.color = "#ef4444";
-    } else if (predictedUnits > planLimit * 0.8) {
-        suggestionElement.innerHTML = `<strong>⚡ AI Suggestion:</strong> Close to limit (${predictedUnits} units). Monitor usage.`;
-        suggestionElement.style.background = "#fffbeb";
-        suggestionElement.style.color = "#f59e0b";
-    } else {
-        suggestionElement.innerHTML = `<strong>⚡ AI Suggestion:</strong> Usage on track (${predictedUnits} units). Good job!`;
-        suggestionElement.style.background = "#f0fdf4";
-        suggestionElement.style.color = "#16a34a";
+        // ✅ TASK 3: Alerts
+        const aRes = await fetch(`${BASE_URL}/alerts/${USER_ID}`);
+        const aJson = aRes.ok ? await aRes.json() : null;
+
+        // Fill UI
+        const aiEl = $id("aiSuggestion");
+        if (aiEl) {
+            aiEl.innerHTML = `<strong>⚡ AI Coach:</strong> ${suggestion}`;
+            aiEl.style.background = "#f0f9ff";
+            aiEl.style.color = "#1e40af";
+        }
+
+        // ✅ TASK 5: Plan Recommendation
+        const planRecEl = $id("planRecommendation");
+        if (planRecEl) {
+            if (pJson && pJson.prediction !== undefined) {
+                planRecEl.innerHTML = `<strong>📊 Prediction:</strong> ${pJson.prediction} units this month — trend: ${pJson.trend || '-'}`;
+                
+                // ✅ TASK 5: Show recommended action if prediction exceeds limit
+                const currentPlan = localStorage.getItem("selectedPlan") || "Basic";
+                const currentLimit = getPlanDetails(currentPlan).units;
+                
+                if (pJson.prediction > currentLimit) {
+                    const recommendedPlan = getRecommendedPlan(pJson.prediction);
+                    showRecommendedAction(recommendedPlan);
+                }
+            } else {
+                planRecEl.innerHTML = "<strong>📊 Prediction:</strong> No prediction available";
+            }
+        }
+
+        // ✅ TASK 3: Alerts display
+        const alertsEl = $id("alertsList") || createAlertsElement();
+        if (alertsEl) {
+            alertsEl.innerHTML = "";
+            const alerts = (aJson && aJson.alerts ? aJson.alerts : ["No alerts"]);
+            alerts.forEach(al => {
+                const div = document.createElement("div");
+                div.textContent = `🔔 ${al}`;
+                div.style.padding = "4px 0";
+                alertsEl.appendChild(div);
+            });
+        }
+        
+    } catch (err) {
+        console.error("Failed to load AI/alerts:", err);
     }
 }
 
 /* ============================================================
-   PROGRESS BAR COLOR
+   GET RECOMMENDED PLAN - TASK 5 HELPER
+   ============================================================ */
+function getRecommendedPlan(predictedUnits) {
+    if (predictedUnits <= 100) return "Basic";
+    if (predictedUnits <= 200) return "Standard";
+    return "Premium";
+}
+
+/* ============================================================
+   SHOW RECOMMENDED ACTION - TASK 5
+   ============================================================ */
+function showRecommendedAction(recommendedPlanName) {
+    const area = $id("planRecommendation");
+    if (!area) return;
+    
+    const button = document.createElement("button");
+    button.textContent = `Switch to ${recommendedPlanName}`;
+    button.style.marginTop = "8px";
+    button.style.padding = "8px 16px";
+    button.style.background = "#10b981";
+    button.style.color = "white";
+    button.style.border = "none";
+    button.style.borderRadius = "6px";
+    button.style.cursor = "pointer";
+    
+    button.onclick = function() {
+        selectPlan(recommendedPlanName);
+        // Auto-click subscribe after a delay
+        setTimeout(() => {
+            document.getElementById('subscribeBtn').click();
+        }, 500);
+    };
+    
+    area.appendChild(button);
+}
+
+/* ============================================================
+   CREATE ALERTS ELEMENT
+   ============================================================ */
+function createAlertsElement() {
+    const alertsDiv = document.createElement('div');
+    alertsDiv.id = 'alertsList';
+    alertsDiv.style.marginTop = '15px';
+    alertsDiv.style.padding = '12px';
+    alertsDiv.style.background = '#fffbeb';
+    alertsDiv.style.borderRadius = '8px';
+    alertsDiv.style.borderLeft = '4px solid #f59e0b';
+    
+    const dashboard = $id("dashboard-box");
+    if (dashboard) {
+        dashboard.appendChild(alertsDiv);
+    }
+    return alertsDiv;
+}
+
+/* ============================================================
+   PROGRESS BAR COLOR - TASK 8: WITH ANIMATION
    ============================================================ */
 function updateProgressBarColor(percent) {
     const progressBar = $id("usageProgress");
     if (!progressBar) return;
 
+    // ✅ TASK 8: Add CSS transition for smooth animation
+    progressBar.style.transition = "width 0.5s ease, background 0.5s ease";
+    
     if (percent >= 100) {
         progressBar.style.background = "linear-gradient(90deg, #ef4444, #dc2626)";
     } else if (percent > 70) {
@@ -373,77 +462,41 @@ function updateProgressBarColor(percent) {
 }
 
 /* ============================================================
-   NOTIFICATIONS (simple)
+   NOTIFICATIONS
    ============================================================ */
 function notifyUser(message) {
     console.log("NOTIFY:", message);
-    // Show notification in subscribe result area
-    const area = $id("subscribeResult");
-    if (!area) return;
-    const stamp = new Date().toLocaleTimeString();
-    area.textContent = `[${stamp}] ${message}`;
-    area.style.background = "#fffbeb";
-    area.style.color = "#92400e";
-    area.style.border = "1px solid #fed7aa";
+    showMessage(message, "warning");
 }
 
 /* ============================================================
-   ML ENDPOINTS TESTING - NEW FUNCTION
+   MESSAGE DISPLAY SYSTEM - TASK 7: ERROR HANDLING
    ============================================================ */
-async function testMlEndpoints() {
-    console.log("Testing ML endpoints...");
+function showMessage(message, type = "info") {
+    const resultElement = $id("subscribeResult");
+    if (!resultElement) return;
     
-    try {
-        // Test predict next usage
-        const res1 = await fetch(`${BASE_URL}/api/predict_next_usage`);
-        const predictData = await res1.json();
-        console.log('predict next:', predictData);
-        
-        // Test energy suggestion
-        const res2 = await fetch(`${BASE_URL}/api/get-energy-suggestion`);
-        const suggestionData = await res2.json();
-        console.log('energy suggestion:', suggestionData);
-        
-        // Show results in backend response area
-        const el = $id("backendResponse");
-        if (el) {
-            el.textContent = `ML Test Results:\nPredict: ${JSON.stringify(predictData)}\nSuggestion: ${JSON.stringify(suggestionData)}`;
-        }
-        
-    } catch (error) {
-        console.error("ML endpoints test failed:", error);
-        const el = $id("backendResponse");
-        if (el) el.textContent = "ML Test Error: " + error.message;
-    }
+    const styles = {
+        success: { background: "#f0fdf4", color: "#166534", border: "1px solid #bbf7d0" },
+        error: { background: "#fef2f2", color: "#991b1b", border: "1px solid #fecaca" },
+        warning: { background: "#fffbeb", color: "#92400e", border: "1px solid #fed7aa" },
+        info: { background: "#f0f9ff", color: "#1e40af", border: "1px solid #bae6fd" }
+    };
+    
+    const style = styles[type] || styles.info;
+    
+    resultElement.textContent = message;
+    resultElement.style.background = style.background;
+    resultElement.style.color = style.color;
+    resultElement.style.border = style.border;
+    resultElement.style.padding = "12px";
+    resultElement.style.borderRadius = "8px";
+    resultElement.style.marginTop = "15px";
+    resultElement.style.transition = "all 0.3s ease";
 }
 
 /* ============================================================
-   LOAD ENERGY SUGGESTION - NEW FUNCTION
-   ============================================================ */
-async function loadEnergySuggestion() {
-    try {
-        const response = await fetch(`${BASE_URL}/api/get-energy-suggestion`);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        
-        const data = await response.json();
-        console.log("Energy suggestion received:", data);
-        
-        // Display in AI suggestion area or create new element
-        const suggestionElement = $id("aiSuggestion");
-        if (suggestionElement && data.suggestion) {
-            suggestionElement.innerHTML = `<strong>⚡ Energy Tip:</strong> ${data.suggestion}`;
-            suggestionElement.style.background = "#f0f9ff";
-            suggestionElement.style.color = "#1e40af";
-        }
-        
-    } catch (error) {
-        console.warn("Could not load energy suggestion:", error);
-        // Keep existing AI suggestion if ML fails
-    }
-}
-
-/* ============================================================
-   CHART: initialize and helper to fill with backend history
+   CHART: USAGE HISTORY - TASK 4
    ============================================================ */
 let usageChart = null;
 
@@ -457,7 +510,7 @@ function initializeChart() {
     usageChart = new Chart(canvas, {
         type: 'line',
         data: {
-            labels: [], // will fill later
+            labels: [],
             datasets: [{
                 label: 'Daily Usage (Units)',
                 data: [],
@@ -486,8 +539,9 @@ function initializeChart() {
     });
 }
 
-/* Fill chart using usage-history endpoint (last 7 days).
-   If backend unavailable, uses mock values. */
+/* ============================================================
+   LOAD USAGE HISTORY - TASK 4
+   ============================================================ */
 async function loadUsageHistoryAndFillChart() {
     try {
         console.log("Loading usage history...");
@@ -497,12 +551,11 @@ async function loadUsageHistoryAndFillChart() {
         const payload = await response.json();
         const history = payload.history || {};
 
-        // Convert history object {YYYY-MM-DD: {units: X}} to array of last 7 days
+        // Convert history to chart data
         const today = new Date();
         const labels = [];
         const dataPoints = [];
 
-        // build last 7 day labels (Mon..Sun or date)
         for (let i = 6; i >= 0; i--) {
             const d = new Date(today);
             d.setDate(today.getDate() - i);
@@ -517,21 +570,19 @@ async function loadUsageHistoryAndFillChart() {
             dataPoints.push(units);
         }
 
-        // If chart not initialized (safe), initialize
         if (!usageChart) initializeChart();
 
-        // Update chart
+        // Update chart with real data
         usageChart.data.labels = labels.map(l => {
-            // short label (MM-DD) for readability
             const p = l.split("-");
-            return `${p[1]}-${p[2]}`;
+            return `${p[1]}-${p[2]}`; // MM-DD format
         });
         usageChart.data.datasets[0].data = dataPoints;
         usageChart.update();
 
     } catch (error) {
         console.error("Failed to load usage history:", error);
-        // fallback - fill chart with mock data
+        // fallback to mock data
         if (!usageChart) initializeChart();
         const mockLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
         const mockData = [12, 19, 15, 22, 18, 25, 20];
@@ -541,8 +592,7 @@ async function loadUsageHistoryAndFillChart() {
     }
 }
 
-// Global functions (expose to HTML inline onclick handlers)
+// Global functions
 window.selectPlan = selectPlan;
 window.checkBackend = checkBackend;
 window.addDailyUsage = addDailyUsage;
-window.testMlEndpoints = testMlEndpoints; // ✅ Expose ML testing function
