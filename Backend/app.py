@@ -1,12 +1,17 @@
-from flask import Flask, jsonify, request
-from flask_cors import CORS
+# ===== imports (keep the rest of your existing imports above) =====
+import logging
 import json
 from filelock import FileLock
 from pathlib import Path
 from datetime import datetime, timezone
-from ML.ai_energy_coach import get_energy_suggestion
-from ML.predict_service import predict_next_usage
-import logging
+try:
+    # these are your real modules in backend/ML/*.py
+    from ML.ai_energy_coach import get_energy_suggestion
+    from ML.predict_service import predict_next_usage
+    from ML.reward_system import calculate_rewards
+    logging.info("ML modules loaded successfully.")
+except Exception as e:
+    logging.warning(f"ML modules not available or failed to import: {e}. Using fallback stubs.")
 
 # ----------------------------------------------------------
 # LOGGING SETUP  (put this immediately after imports)
@@ -29,8 +34,6 @@ LOCK_PATH = str(DB_PATH) + ".lock"
 
 app = Flask(__name__)
 CORS(app)
-
-
 # ----------------------------------------------------
 # LOGGING MIDDLEWARE (shows all requests in terminal)
 # ----------------------------------------------------
@@ -156,10 +159,8 @@ def usage_add_specific_date():
 
     # Save usage for given date
     usage_all[user_id][date] = {"units": units}
-
     db["usage"] = usage_all
     write_db(db)
-
     return jsonify({"message": "Usage updated"}), 200
 
 # ---------------------------------------------
@@ -202,6 +203,71 @@ def usage_add_today():
         "units": units
     }), 201
 
+# -------------------------------------------------------------
+# TASK 6 — ADMIN ANALYTICS API
+# -------------------------------------------------------------
+@app.route("/admin/analytics", methods=["GET"])
+def admin_analytics():
+    try:
+        logging.info("🔥 /admin/analytics called")
+        logging.info("[ADMIN] Analytics request")
+
+        db = read_db()
+        subs = db.get("subscriptions", {})
+        usage_all = db.get("usage", {})
+
+        total_users = len(subs)
+
+        # ----- Total units consumed -----
+        total_units = 0
+        day_totals = {}  # for peak day
+
+        for user, days in usage_all.items():
+            for date, rec in days.items():
+                units = float(rec.get("units", 0)) if isinstance(rec, dict) else float(rec)
+                total_units += units
+                day_totals[date] = day_totals.get(date, 0) + units
+
+        # ----- Highest usage user -----
+        highest_user = None
+        highest_usage = 0
+
+        for user, days in usage_all.items():
+            user_sum = sum(
+                float(rec.get("units", 0)) if isinstance(rec, dict) else float(rec)
+                for rec in days.values()
+            )
+            if user_sum > highest_usage:
+                highest_usage = user_sum
+                highest_user = user
+
+        # ----- Average daily usage -----
+        if day_totals:
+            avg_daily = round(total_units / len(day_totals), 2)
+            peak_day = max(day_totals, key=day_totals.get)
+        else:
+            avg_daily = 0
+            peak_day = None
+
+        # ----- Plan distribution -----
+        plan_distribution = {}
+        for user, sub in subs.items():
+            plan = sub.get("plan_name", "Unknown")
+            plan_distribution[plan] = plan_distribution.get(plan, 0) + 1
+
+        return jsonify({
+            "total_users": total_users,
+            "total_units": round(total_units, 2),
+            "highest_user": highest_user,
+            "highest_usage": round(highest_usage, 2),
+            "average_daily_usage": avg_daily,
+            "peak_usage_day": peak_day,
+            "plan_distribution": plan_distribution
+        }), 200
+
+    except Exception as e:
+        logging.error(f"[ERROR] /admin/analytics failed: {str(e)}")
+        return jsonify({"error": "Internal server error", "details": str(e)}), 500
 
 # ---------------------------------------------
 # STATUS
@@ -210,6 +276,7 @@ def usage_add_today():
 def status(user_id):
     logging.info(f"🔥 /status/{user_id} called")
     logging.info(f"[STATUS] Request for user: {user_id}")
+
     db = read_db()
     subs = db.get("subscriptions", {})
     usage_all = db.get("usage", {})
@@ -217,6 +284,7 @@ def status(user_id):
     user_sub = subs.get(user_id, {})
     user_usage = usage_all.get(user_id, {})
 
+    # Month used
     month_used = 0.0
     for rec in user_usage.values():
         if isinstance(rec, dict):
@@ -226,9 +294,10 @@ def status(user_id):
 
     # Prediction
     if user_usage:
-        values = []
-        for rec in user_usage.values():
-            values.append(float(rec["units"] if isinstance(rec, dict) else rec))
+        values = [
+            float(rec["units"] if isinstance(rec, dict) else rec)
+            for rec in user_usage.values()
+        ]
         avg_daily = sum(values) / len(values)
         predicted_units = round(avg_daily * 30, 2)
     else:
@@ -243,6 +312,18 @@ def status(user_id):
     plan_name = user_sub.get("plan_name")
     progress_percent = round((month_used / plan_limit) * 100, 2) if plan_limit else 0
 
+    # ------------------------------------------------
+    # ✅ REWARD CALCULATION (Correct position)
+    # ------------------------------------------------
+    from ML.reward_system import calculate_rewards
+
+    reward_points = calculate_rewards(month_used, plan_limit)
+
+    db.setdefault("rewards", {})
+    db["rewards"][user_id] = reward_points
+    write_db(db)
+    # ------------------------------------------------
+
     return jsonify({
         "user_id": user_id,
         "today_used": today_used,
@@ -250,7 +331,8 @@ def status(user_id):
         "predicted_units": predicted_units,
         "plan_limit": plan_limit,
         "plan_name": plan_name,
-        "progress_percent": progress_percent
+        "progress_percent": progress_percent,
+        "reward_points": reward_points  # optional for frontend
     }), 200
 
 # ---------------------------------------------
@@ -372,184 +454,137 @@ def update_subscription(user_id):
 # -------------------------------------------------------------
 # TASK 5 — ADVANCED PREDICTION API
 # -------------------------------------------------------------
-@app.route("/predict-advanced/<user_id>", methods=["GET"])
+@app.get("/predict-advanced/<user_id>")
 def predict_advanced(user_id):
-    logging.info(f"🔥 /predict-advanced/{user_id} called")
-    logging.info(f"[PREDICT-ADVANCED] Request for user: {user_id}")
-    db = read_db()
-    usage_all = db.get("usage", {})
-    user_usage = usage_all.get(user_id, {})
+    try:
+        logging.info(f"[PREDICT-ADVANCED] Request for user: {user_id}")
 
-    if not user_usage:
+        db = read_db()
+        usage = db.get("usage", {}).get(user_id, {})
+
+        # convert dict → list of numbers
+        daily_values = [
+            v["units"] if isinstance(v, dict) else v
+            for v in usage.values()
+        ]
+
+        if not daily_values:
+            return jsonify({
+                "prediction": 0,
+                "moving_average": 0,
+                "trend": "No data"
+            }), 200
+
+        # monthly prediction (your ML simple model)
+        prediction = predict_next_usage(daily_values)
+
+        # 7-day moving average (or full avg if <7 days)
+        if len(daily_values) >= 7:
+            moving_avg = sum(daily_values[-7:]) / 7
+        else:
+            moving_avg = sum(daily_values) / len(daily_values)
+
+        # Trend
+        if len(daily_values) >= 2:
+            if daily_values[-1] > daily_values[-2]:
+                trend = "increasing"
+            elif daily_values[-1] < daily_values[-2]:
+                trend = "decreasing"
+            else:
+                trend = "stable"
+        else:
+            trend = "Not enough data"
+
         return jsonify({
-            "prediction": 0,
-            "trend": "No data",
-            "moving_average": 0
+            "prediction": round(prediction, 2),
+            "moving_average": round(moving_avg, 2),
+            "trend": trend
         }), 200
 
-    # Convert to list of floats
-    values = []
-    for day, rec in user_usage.items():
-        if isinstance(rec, dict):
-            values.append(float(rec.get("units", 0)))
-        else:
-            values.append(float(rec))
+    except Exception as e:
+        logging.error(f"[ERROR] predict_advanced: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
-    # 7-day moving average
-    if len(values) >= 7:
-        moving_avg = sum(values[-7:]) / 7
-    else:
-        moving_avg = sum(values) / len(values)
-
-    # Predict 30 days
-    prediction = round(moving_avg * 30, 2)
-
-    # Trend
-    if len(values) >= 2:
-        if values[-1] > values[-2]:
-            trend = "Increasing usage"
-        elif values[-1] < values[-2]:
-            trend = "Decreasing usage"
-        else:
-            trend = "Stable usage"
-    else:
-        trend = "Not enough data"
-
-    return jsonify({
-        "prediction": prediction,
-        "moving_average": round(moving_avg, 2),
-        "trend": trend
-    }), 200
-# -------------------------------------------------------------
-# TASK 6 — ADMIN ANALYTICS API
-# -------------------------------------------------------------
-@app.route("/admin/analytics", methods=["GET"])
-def admin_analytics():
-    logging.info("🔥 /admin/analytics called")
-    logging.info("[ADMIN] Analytics request")
-    db = read_db()
-    subs = db.get("subscriptions", {})
-    usage_all = db.get("usage", {})
-
-    total_users = len(subs)
-
-    # ----- Total units consumed -----
-    total_units = 0
-    day_totals = {}  # for peak day
-    for user, days in usage_all.items():
-        for date, rec in days.items():
-            units = float(rec.get("units", 0)) if isinstance(rec, dict) else float(rec)
-            total_units += units
-
-            day_totals[date] = day_totals.get(date, 0) + units
-
-    # ----- Highest usage user -----
-    highest_user = None
-    highest_usage = 0
-    for user, days in usage_all.items():
-        user_sum = sum(float(rec.get("units", 0)) if isinstance(rec, dict) else float(rec)
-                       for rec in days.values())
-        if user_sum > highest_usage:
-            highest_usage = user_sum
-            highest_user = user
-
-    # ----- Average daily usage -----
-    if day_totals:
-        avg_daily = round(total_units / len(day_totals), 2)
-        peak_day = max(day_totals, key=day_totals.get)
-    else:
-        avg_daily = 0
-        peak_day = None
-
-    # ----- Plan distribution -----
-    plan_distribution = {}
-    for user, sub in subs.items():
-        plan = sub.get("plan_name", "Unknown")
-        plan_distribution[plan] = plan_distribution.get(plan, 0) + 1
-
-    return jsonify({
-        "total_users": total_users,
-        "total_units": round(total_units, 2),
-        "highest_user": highest_user,
-        "highest_usage": round(highest_usage, 2),
-        "average_daily_usage": avg_daily,
-        "peak_usage_day": peak_day,
-        "plan_distribution": plan_distribution
-    }), 200
 # -------------------------------------------------------------
 # TASK 7 — NOTIFICATION RULES API
 # -------------------------------------------------------------
 @app.route("/alerts/<user_id>", methods=["GET"])
 def alerts(user_id):
-    logging.info(f"🔥 /alerts/{user_id} called")
-    logging.info(f"[ALERTS] Request for user: {user_id}")
-    db = read_db()
-    subs = db.get("subscriptions", {})
-    usage_all = db.get("usage", {})
+    try:
+        logging.info(f"🔥 /alerts/{user_id} called")
+        logging.info(f"[ALERTS] Request for user: {user_id}")
 
-    user_sub = subs.get(user_id)
-    user_usage = usage_all.get(user_id, {})
+        db = read_db()
+        subs = db.get("subscriptions", {})
+        usage_all = db.get("usage", {})
 
-    alerts = []
+        user_sub = subs.get(user_id)
+        user_usage = usage_all.get(user_id, {})
 
-    # If no subscription or no usage
-    if not user_sub:
-        return jsonify({"alerts": ["User not subscribed"]}), 200
+        alerts = []
 
-    if not user_usage:
-        return jsonify({"alerts": ["No usage data available"]}), 200
+        # If no subscription or no usage
+        if not user_sub:
+            return jsonify({"alerts": ["User not subscribed"]}), 200
 
-    # Extract needed values
-    plan_limit = user_sub.get("plan_units", 0)
+        if not user_usage:
+            return jsonify({"alerts": ["No usage data available"]}), 200
 
-    # Month total
-    total_used = sum(
-        float(rec.get("units", 0)) if isinstance(rec, dict) else float(rec)
-        for rec in user_usage.values()
-    )
+        # Extract needed values
+        plan_limit = user_sub.get("plan_units", 0)
 
-    # Detect nearing limit (80%)
-    if plan_limit > 0:
-        if total_used >= 0.8 * plan_limit and total_used < plan_limit:
-            alerts.append("⚠️ You have used more than 80% of your monthly plan.")
+        # Month total
+        total_used = sum(
+            float(rec.get("units", 0)) if isinstance(rec, dict) else float(rec)
+            for rec in user_usage.values()
+        )
 
-        if total_used >= plan_limit:
-            alerts.append("🚨 You exceeded your monthly usage limit!")
+        # Detect nearing limit (80%)
+        if plan_limit > 0:
+            if 0.8 * plan_limit <= total_used < plan_limit:
+                alerts.append("⚠️ You have used more than 80% of your monthly plan.")
 
-    # Predict next month usage using average
-    daily_values = [
-        float(rec.get("units", 0)) if isinstance(rec, dict) else float(rec)
-        for rec in user_usage.values()
-    ]
+            if total_used >= plan_limit:
+                alerts.append("🚨 You exceeded your monthly usage limit!")
 
-    if daily_values:
-        avg_daily = sum(daily_values) / len(daily_values)
-        predicted = avg_daily * 30
+        # Predict next month usage using average
+        daily_values = [
+            float(rec.get("units", 0)) if isinstance(rec, dict) else float(rec)
+            for rec in user_usage.values()
+        ]
 
-        if predicted > plan_limit:
-            alerts.append("📈 Your predicted usage may exceed your subscription limit.")
+        if daily_values:
+            avg_daily = sum(daily_values) / len(daily_values)
+            predicted = avg_daily * 30
 
-    # Compare today vs yesterday
-    dates = sorted(user_usage.keys())
-    if len(dates) >= 2:
-        today = dates[-1]
-        yesterday = dates[-2]
+            if predicted > plan_limit:
+                alerts.append("📈 Your predicted usage may exceed your subscription limit.")
 
-        today_units = float(user_usage[today].get("units", 0)) if isinstance(user_usage[today], dict) else float(user_usage[today])
-        y_units = float(user_usage[yesterday].get("units", 0)) if isinstance(user_usage[yesterday], dict) else float(user_usage[yesterday])
+        # Compare today vs yesterday
+        dates = sorted(user_usage.keys())
+        if len(dates) >= 2:
+            today = dates[-1]
+            yesterday = dates[-2]
 
-        if today_units > y_units:
-            alerts.append("🔥 Today's usage is higher than yesterday.")
+            today_units = float(user_usage[today].get("units", 0))
+            y_units = float(user_usage[yesterday].get("units", 0))
 
-        # Sudden spike (2x)
-        if y_units > 0 and today_units > 2 * y_units:
-            alerts.append("⚡ Sudden usage spike detected.")
+            if today_units > y_units:
+                alerts.append("🔥 Today's usage is higher than yesterday.")
 
-    # If no alerts found
-    if not alerts:
-        alerts = ["Everything looks normal. 👍"]
+            if y_units > 0 and today_units > 2 * y_units:
+                alerts.append("⚡ Sudden usage spike detected.")
 
-    return jsonify({"alerts": alerts}), 200
+        # If no alerts found
+        if not alerts:
+            alerts = ["Everything looks normal. 👍"]
+
+        return jsonify({"alerts": alerts}), 200
+
+    except Exception as e:
+        logging.error(f"[ERROR] alerts: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
 
 @app.get("/api/get-energy-suggestion")
 def api_energy_suggestion():
@@ -559,6 +594,12 @@ def api_energy_suggestion():
         data = read_db()
         usage_all = data.get("usage", {})
         subs_all = data.get("subscriptions", {})
+
+        # ----------- COMPATIBILITY SHIM -----------
+        # Some old ML code expects "usage_history"
+        if "usage_history" not in data:
+            data["usage_history"] = usage_all
+        # ------------------------------------------
 
         # ----------- VALIDATION -----------
         if user_id not in usage_all:
@@ -573,7 +614,7 @@ def api_energy_suggestion():
             return jsonify({"error": "No usage history for this user"}), 400
         # ----------------------------------
 
-        # convert dict --> {0: units1, 1: units2, ...}
+        # convert dict → {0: units1, 1: units2, ...}
         numeric_usage = {
             idx: (rec["units"] if isinstance(rec, dict) else rec)
             for idx, rec in enumerate(user_usage.values())
@@ -590,6 +631,7 @@ def api_energy_suggestion():
     except Exception as e:
         logging.error(f"[ERROR] get-energy-suggestion: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
     
 @app.get("/api/predict_next_usage")
 def api_predict_usage():
@@ -597,6 +639,12 @@ def api_predict_usage():
         user_id = request.args.get("user_id", "user1")
 
         data = read_db()
+
+        # -------- Compatibility shim --------
+        if "usage_history" not in data and "usage" in data:
+            data["usage_history"] = data["usage"]
+        # -----------------------------------
+
         usage_all = data.get("usage", {})
 
         # ----------- VALIDATION -----------
@@ -619,10 +667,58 @@ def api_predict_usage():
         return jsonify({
             "user_id": user_id,
             "predicted_usage": predicted
-        })
+        }), 200
 
     except Exception as e:
         logging.error(f"[ERROR] predict_next_usage: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.get("/rewards/<user_id>")
+def get_rewards(user_id):
+    try:
+        logging.info(f"🔥 /rewards/{user_id} called")
+
+        db = read_db()
+        rewards = db.get("rewards", {})
+        
+        user_points = rewards.get(user_id, 0)
+
+        return jsonify({
+            "user_id": user_id,
+            "reward_points": user_points
+        }), 200
+
+    except Exception as e:
+        logging.error(f"[ERROR] get_rewards: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+    
+@app.post("/rewards/claim")
+def claim_rewards():
+    try:
+        data = request.get_json() or {}
+        user_id = data.get("user_id")
+
+        if not user_id:
+            return jsonify({"error": "user_id is required"}), 400
+
+        db = read_db()
+        rewards = db.get("rewards", {})
+
+        current = rewards.get(user_id, 0)
+
+        # reset reward points after claim
+        rewards[user_id] = 0
+        db["rewards"] = rewards
+        write_db(db)
+
+        return jsonify({
+            "message": "Rewards claimed successfully",
+            "claimed_points": current
+        }), 200
+
+    except Exception as e:
+        logging.error(f"[ERROR] claim_rewards: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 # ---------------------------------------------
