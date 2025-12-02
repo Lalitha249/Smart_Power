@@ -1,61 +1,122 @@
-# ML/data_loader.py
 import json
-from pathlib import Path
-import numpy as np
-import pandas as pd
-from datetime import datetime
+import os
 
-DB_PATH = Path(__file__).resolve().parent.parent / "db.json"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-def load_db():
-    if not DB_PATH.exists():
-        raise FileNotFoundError(f"DB not found at {DB_PATH}")
-    with open(DB_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
+USERS_FILE = os.path.join(BASE_DIR, "../Database/users.json")
+USAGE_FILE = os.path.join(BASE_DIR, "../Database/usage.json")
+PLANS_FILE = os.path.join(BASE_DIR, "../Database/plans.json")
 
-def build_training_table(min_days=3):
+
+def load_json(file_path):
     """
-    Build a simple dataset: for each user-month (or day-sequence) produce:
-    - X: last N daily usages (we'll use variable length via padding/truncation)
-    - y: predicted next-month units (avg_daily * 30)
-    This is simple and works with small data for demo.
+    Safely load JSON files
     """
-    raw = load_db()
-    usage = raw.get("usage", {})  # dict: user -> {date: {"units": x}}
-    rows = []
-    for user, d in usage.items():
-        # d is date->record
-        # sort by date
-        items = sorted(d.items(), key=lambda x: x[0])
-        # extract daily numbers
-        daily = []
-        for date_str, rec in items:
-            val = rec.get("units") if isinstance(rec, dict) else rec
-            try:
-                daily.append(float(val))
-            except:
-                continue
-        if len(daily) < min_days:
-            continue
-        # we'll create sliding windows: use last 7 days as features
-        window = 3
-        for i in range(window, len(daily)):
-            x = daily[i-window:i]   # last 7 days
-            # target: next 30-days projection from avg daily of window
-            avg_daily = sum(x) / len(x)
-            y = avg_daily * 30
-            rows.append({"user": user, "x": x, "y": y})
-    # convert to DataFrame with columns x0..x6
-    if not rows:
-        return pd.DataFrame()
-    df = pd.DataFrame(rows)
-    # expand x list into columns
-    x_df = pd.DataFrame(df['x'].tolist(), columns=[f'x{i}' for i in range(len(df['x'].iloc[0]))])
-    df = pd.concat([df.drop(columns=['x']), x_df], axis=1)
-    return df
+    try:
+        if not os.path.exists(file_path):
+            print(f"❌ File not found: {file_path}")
+            return []
 
+        with open(file_path, "r") as file:
+            data = json.load(file)
+            return data
+
+    except Exception as e:
+        print(f"❌ Error loading {file_path}: {e}")
+        return []
+
+
+def get_user_info(user_id):
+    """
+    Fetch user details from users.json
+    Works for BOTH list & dict format
+    """
+    users_data = load_json(USERS_FILE)
+
+    # If users.json is a LIST
+    if isinstance(users_data, list):
+        for user in users_data:
+            if user.get("user_id") == user_id or user.get("id") == user_id:
+                return {
+                    "user": user,
+                    "plan": user.get("plan", 0)
+                }
+
+    # If users.json is a DICT
+    elif isinstance(users_data, dict):
+        user = users_data.get(user_id, {})
+        return {
+            "user": user,
+            "plan": user.get("plan", 0)
+        }
+
+    return {"user": {}, "plan": 0}
+
+
+def get_usage_data(user_id):
+    """
+    Get all usage data for a specific user
+    """
+    usage_data = load_json(USAGE_FILE)
+
+    user_usage = []
+
+    if isinstance(usage_data, list):
+        for entry in usage_data:
+            if entry.get("user_id") == user_id:
+                user_usage.append(entry.get("units", 0))
+
+    elif isinstance(usage_data, dict):
+        user_usage = usage_data.get(user_id, [])
+
+    return user_usage
+
+
+def get_plan_info(plan_id):
+    """
+    Get plan details
+    """
+    plans_data = load_json(PLANS_FILE)
+
+    if isinstance(plans_data, list):
+        for plan in plans_data:
+            if plan.get("id") == plan_id:
+                return plan
+
+    elif isinstance(plans_data, dict):
+        return plans_data.get(str(plan_id), {})
+
+    return {}
+
+
+def get_user_full_data(user_id):
+    """
+    Combine user + usage + plan data
+    """
+    user_info = get_user_info(user_id)
+    usage = get_usage_data(user_id)
+    plan_info = get_plan_info(user_info.get("plan", 0))
+
+    return {
+        "user": user_info.get("user", {}),
+        "plan": plan_info,
+        "usage": usage
+    }
+
+
+# ✅ TEST SECTION
 if __name__ == "__main__":
-    df = build_training_table()
-    print("Built training table rows:", len(df))
-    if not df.empty:
-        print(df.head())
+    test_user = "user1"
+
+    print("\n✅ TESTING DATA LOADER")
+    print("-------------------------------")
+
+    print(f"User ID: {test_user}")
+    print("Daily Values:", get_usage_data(test_user))
+
+    user_info = get_user_info(test_user)
+    print("User Plan:", user_info.get("plan"))
+
+    full_data = get_user_full_data(test_user)
+    print("\n✅ FULL DATA OUTPUT:")
+    print(json.dumps(full_data, indent=4))
