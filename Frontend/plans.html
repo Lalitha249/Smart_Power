@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartPower - Choose Plan</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Additional plan styles */
+        .plans-hero {
+            background: linear-gradient(135deg, #2563eb, #0ea5e9);
+            padding: 40px 20px;
+            text-align: center;
+            color: white;
+            border-radius: 0 0 30px 30px;
+            margin-bottom: 40px;
+        }
+        
+        .plans-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .popular-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #f59e0b;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .selected-plan {
+            border: 3px solid #2563eb;
+            transform: scale(1.05);
+        }
+        
+        .plan-comparison {
+            margin-top: 50px;
+            padding: 30px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <div class="hero" style="border-radius: 0; padding: 20px;">
+        <h1 class="title" style="font-size: 32px;">⚡ SmartPower Plans</h1>
+        <p class="tagline">Choose the perfect electricity plan for your needs</p>
+        
+        <!-- Simple Navigation -->
+        <div style="margin-top: 20px;">
+            <a href="index.html" style="color: white; margin-right: 20px; text-decoration: none;">Dashboard</a>
+            <a href="live.html" style="color: white; margin-right: 20px; text-decoration: none;">Live Usage</a>
+            <a href="rewards.html" style="color: white; text-decoration: none;">Rewards</a>
+        </div>
+    </div>
+
+    <div class="plans-container">
+        <!-- Plan Cards (using your existing plan-card style) -->
+        <div class="plan-cards" style="margin-top: 30px;">
+            <!-- Basic Plan -->
+            <div class="plan-card basic" onclick="selectPlan('Basic')" id="planBasic">
+                <h3>Basic</h3>
+                <p class="units">100 units / month</p>
+                <p class="price">₹1000</p>
+                <p style="color: #64748b; font-size: 14px; margin: 10px 0;">Perfect for small apartments</p>
+                <button class="select-btn">Select Plan</button>
+            </div>
+
+            <!-- Standard Plan (Popular) -->
+            <div class="plan-card standard selected-plan" onclick="selectPlan('Standard')" id="planStandard">
+                <div class="popular-badge">POPULAR</div>
+                <h3>Standard</h3>
+                <p class="units">200 units / month</p>
+                <p class="price">₹2000</p>
+                <p style="color: #64748b; font-size: 14px; margin: 10px 0;">Best for families</p>
+                <button class="select-btn" style="background: #10b981;">Current Plan</button>
+            </div>
+
+            <!-- Premium Plan -->
+            <div class="plan-card premium" onclick="selectPlan('Premium')" id="planPremium">
+                <h3>Premium</h3>
+                <p class="units">400 units / month</p>
+                <p class="price">₹4000</p>
+                <p style="color: #64748b; font-size: 14px; margin: 10px 0;">For large homes & offices</p>
+                <button class="select-btn">Select Plan</button>
+            </div>
+        </div>
+
+        <!-- Plan Comparison -->
+        <div class="plan-comparison">
+            <h2 style="text-align: center; margin-bottom: 30px; color: #1e293b;">Plan Comparison</h2>
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #f8fafc;">
+                            <th style="padding: 15px; text-align: left; border-bottom: 2px solid #e2e8f0;">Feature</th>
+                            <th style="padding: 15px; text-align: center; border-bottom: 2px solid #e2e8f0;">Basic</th>
+                            <th style="padding: 15px; text-align: center; border-bottom: 2px solid #e2e8f0;">Standard</th>
+                            <th style="padding: 15px; text-align: center; border-bottom: 2px solid #e2e8f0;">Premium</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 15px; border-bottom: 1px solid #e2e8f0;">Units per month</td>
+                            <td style="padding: 15px; text-align: center; border-bottom: 1px solid #e2e8f0;">100</td>
+                            <td style="padding: 15px; text-align: center; border-bottom: 1px solid #e2e8f0;">200</td>
+                            <td style="padding: 15px; text-align: center; border-bottom: 1px solid #e2e8f0;">400</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 15px; border-bottom: 1px solid #e2e8f0;">Live Monitoring</td>
+                            <td style="padding: 15px; text-align: center; border-bottom: 1px solid #e2e8f0;">✓</td>
+                            <td style="padding: 15px; text-align: center; border-bottom: 1px solid #e2e8f0;">✓</td>
+                            <td style="padding: 15px; text-align: center; border-bottom: 1px solid #e2e8f0;">✓</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 15px; border-bottom: 1px solid #e2e8f0;">AI Recommendations</td>
+                            <td style="padding: 15px; text-align: center; border-bottom: 1px solid #e2e8f0;">-</td>
+                            <td style="padding: 15px; text-align: center; border-bottom: 1px solid #e2e8f0;">✓</td>
+                            <td style="padding: 15px; text-align: center; border-bottom: 1px solid #e2e8f0;">✓</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 15px; border-bottom: 1px solid #e2e8f0;">Reward Points</td>
+                            <td style="padding: 15px; text-align: center; border-bottom: 1px solid #e2e8f0;">✓</td>
+                            <td style="padding: 15px; text-align: center; border-bottom: 1px solid #e2e8f0;">✓</td>
+                            <td style="padding: 15px; text-align: center; border-bottom: 1px solid #e2e8f0;">2x Points</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 15px; border-bottom: 1px solid #e2e8f0;">Priority Support</td>
+                            <td style="padding: 15px; text-align: center; border-bottom: 1px solid #e2e8f0;">-</td>
+                            <td style="padding: 15px; text-align: center; border-bottom: 1px solid #e2e8f0;">✓</td>
+                            <td style="padding: 15px; text-align: center; border-bottom: 1px solid #e2e8f0;">24/7 Premium</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Subscription Action -->
+        <div class="subscription-box" style="margin-top: 40px;">
+            <h2>Confirm Your Selection</h2>
+            <p style="color: #64748b; margin-bottom: 20px;">
+                Selected Plan: <strong id="selectedPlanName">Standard</strong>
+            </p>
+            <button class="subscribe-action" onclick="subscribePlan()">
+                Subscribe to <span id="selectedPlanBtn">Standard</span> Plan
+            </button>
+            <div id="subscribeResult" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <script>
+        // Plan selection logic
+        function selectPlan(planName) {
+            // Remove selected class from all
+            document.querySelectorAll('.plan-card').forEach(card => {
+                card.classList.remove('selected-plan');
+                const btn = card.querySelector('.select-btn');
+                btn.textContent = 'Select Plan';
+                btn.style.background = '';
+            });
+            
+            // Add to selected
+            const selectedCard = document.getElementById(`plan${planName}`);
+            selectedCard.classList.add('selected-plan');
+            const selectedBtn = selectedCard.querySelector('.select-btn');
+            selectedBtn.textContent = 'Selected ✓';
+            selectedBtn.style.background = '#10b981';
+            
+            // Update display
+            document.getElementById('selectedPlanName').textContent = planName;
+            document.getElementById('selectedPlanBtn').textContent = planName;
+            
+            // Save to localStorage
+            localStorage.setItem('selectedPlan', planName);
+        }
+        
+        function subscribePlan() {
+            const plan = localStorage.getItem('selectedPlan') || 'Standard';
+            const resultEl = document.getElementById('subscribeResult');
+            
+            resultEl.innerHTML = `
+                <div style="background: #f0fdf4; color: #065f46; padding: 15px; border-radius: 8px; border-left: 4px solid #10b981;">
+                    ✅ Successfully subscribed to <strong>${plan}</strong> plan!<br>
+                    <small>Redirecting to dashboard...</small>
+                </div>
+            `;
+            
+            // Redirect after 2 seconds
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 2000);
+        }
+        
+        // Load saved selection
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedPlan = localStorage.getItem('selectedPlan') || 'Standard';
+            selectPlan(savedPlan);
+        });
+    </script>
+</body>
+</html>

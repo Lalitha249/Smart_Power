@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartPower - Login</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Additional styles for login page */
+        .auth-container {
+            max-width: 400px;
+            margin: 4rem auto;
+            padding: 0 20px;
+        }
+        
+        .auth-card {
+            background: white;
+            padding: 40px 30px;
+            border-radius: 16px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        
+        .auth-logo {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: #2563eb;
+        }
+        
+        .auth-title {
+            font-size: 28px;
+            margin-bottom: 10px;
+            color: #1e293b;
+        }
+        
+        .auth-subtitle {
+            color: #64748b;
+            margin-bottom: 30px;
+        }
+        
+        .auth-toggle {
+            margin-top: 20px;
+            color: #64748b;
+        }
+        
+        .auth-toggle a {
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .demo-note {
+            margin-top: 25px;
+            padding: 15px;
+            background: #f0f9ff;
+            border-radius: 10px;
+            border-left: 4px solid #2563eb;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-logo">⚡</div>
+            <h1 class="auth-title">SmartPower</h1>
+            <p class="auth-subtitle">Smart Electricity Management System</p>
+            
+            <div class="form-group">
+                <input type="email" id="email" class="form-input" placeholder="Email Address" style="margin-bottom: 20px;">
+            </div>
+            
+            <div class="form-group">
+                <input type="password" id="password" class="form-input" placeholder="Password" style="margin-bottom: 25px;">
+            </div>
+            
+            <button class="select-btn" style="width: 100%; padding: 15px; font-size: 16px;" onclick="handleLogin()">
+                Login to Dashboard
+            </button>
+            
+            <div class="auth-toggle">
+                Don't have an account? <a href="#" onclick="toggleRegister()">Register here</a>
+            </div>
+            
+            <div class="demo-note">
+                <strong>Demo Access:</strong><br>
+                Use any email and password<br>
+                Click login to continue
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function handleLogin() {
+            // For demo, just redirect to main page
+            window.location.href = 'index.html';
+        }
+        
+        function toggleRegister() {
+            alert('Registration feature will be implemented with backend');
+        }
+    </script>
+</body>
+</html>
