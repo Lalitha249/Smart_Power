@@ -1,10 +1,11 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import logging
-import json
-from filelock import FileLock
-from pathlib import Path
 from datetime import datetime, timezone
+from db.mongo import db
+from bson import ObjectId
+
+
 try:
     # these are your real modules in backend/ML/*.py
     from ML.ai_energy_coach import get_energy_suggestion
@@ -28,8 +29,6 @@ logging.basicConfig(
 # ---------------------------------------------
 # DATABASE SETUP
 # ---------------------------------------------
-DB_PATH = Path("db.json")
-LOCK_PATH = str(DB_PATH) + ".lock"
 app = Flask(__name__)
 CORS(app)
 # ----------------------------------------------------
@@ -46,28 +45,7 @@ def log_request():
         logging.info("--------------------------------------------------")
     except Exception as e:
         logging.error(f"[ERROR] logging middleware failed: {str(e)}")
-#-----------db read/write with locking and error handling-----------------------------
-def read_db():
-    try:
-        if not DB_PATH.exists():
-            return {"users": [], "subscriptions": {}, "usage": {}, "rewards": {}}
 
-        with FileLock(LOCK_PATH):
-            return json.loads(DB_PATH.read_text(encoding="utf-8"))
-
-    except Exception as e:
-        logging.error(f"[ERROR] read_db failed: {str(e)}")
-        # Return a safe empty schema instead of crashing
-        return {"users": [], "subscriptions": {}, "usage": {}, "rewards": {}}
-
-def write_db(data):
-    try:
-        with FileLock(LOCK_PATH):
-            DB_PATH.write_text(json.dumps(data, indent=2), encoding="utf-8")
-
-    except Exception as e:
-        logging.error(f"[ERROR] write_db failed: {str(e)}")
-  # Fail silently — API route will handle the error
 # ---------------------------------------------
 # ROOT
 # ---------------------------------------------
@@ -101,43 +79,49 @@ def subscribe():
         # ---------- VALIDATION ----------
         if not user_id:
             return jsonify({"error": "user_id is required"}), 400
-
         if not plan_name:
             return jsonify({"error": "plan_name is required"}), 400
-
-        # validate plan units
+        
         try:
             plan_units = int(plan_units)
-            if plan_units <= 0:
-                return jsonify({"error": "plan_units must be > 0"}), 400
         except:
-            return jsonify({"error": "plan_units must be an integer"}), 400
+            return jsonify({"error": "plan_units must be integer"}), 400
 
-        # validate price
         try:
             price = float(price)
-            if price < 0:
-                return jsonify({"error": "price cannot be negative"}), 400
         except:
             return jsonify({"error": "price must be a number"}), 400
 
-        # ---------- SAVE ----------
-        db = read_db()
-        subs = db.get("subscriptions", {})
+        # ---------- SAVE TO MONGO ----------
+        existing = db.subscriptions.find_one({"user_id": user_id})
 
-        subs[user_id] = {
-            "plan_name": plan_name,
-            "plan_units": plan_units,
-            "price": price,
-            "start_ts": datetime.now(timezone.utc).isoformat()
-        }
-
-        db["subscriptions"] = subs
-        write_db(db)
+        if existing:
+            db.subscriptions.update_one(
+                {"user_id": user_id},
+                {"$set": {
+                    "plan_name": plan_name,
+                    "plan_units": plan_units,
+                    "price": price,
+                    "start_ts": datetime.now(timezone.utc).isoformat()
+                }}
+            )
+        else:
+            db.subscriptions.insert_one({
+                "user_id": user_id,
+                "plan_name": plan_name,
+                "plan_units": plan_units,
+                "price": price,
+                "start_ts": datetime.now(timezone.utc).isoformat()
+            })
 
         return jsonify({
-            "message": "subscribed",
-            "subscription": subs[user_id]
+            "message": "Subscribed successfully",
+            "subscription": {
+                "user_id": user_id,
+                "plan_name": plan_name,
+                "plan_units": plan_units,
+                "price": price
+            }
         }), 201
 
     except Exception as e:
@@ -160,10 +144,8 @@ def usage_add_specific_date():
         # VALIDATION
         if not user_id:
             return jsonify({"error": "user_id is required"}), 400
-
         if not date:
             return jsonify({"error": "date is required"}), 400
-
         if units is None:
             return jsonify({"error": "units is required"}), 400
 
@@ -174,16 +156,20 @@ def usage_add_specific_date():
         except:
             return jsonify({"error": "units must be a number"}), 400
 
-        # DB operations
-        db = read_db()
-        usage_all = db.get("usage", {})
-
-        if user_id not in usage_all:
-            usage_all[user_id] = {}
-
-        usage_all[user_id][date] = {"units": units}
-        db["usage"] = usage_all
-        write_db(db)
+        # ---- MONGODB SAVE OPERATION ----
+        db.usage.update_one(
+            {"user_id": user_id, "date": date},
+            {
+                "$set": {
+                    "units": units,
+                    "updated_at": datetime.utcnow().isoformat()
+                },
+                "$setOnInsert": {
+                    "created_at": datetime.utcnow().isoformat()
+                }
+            },
+            upsert=True
+        )
 
         return jsonify({"message": "Usage updated"}), 200
 
@@ -200,36 +186,58 @@ def admin_analytics():
         logging.info("🔥 /admin/analytics called")
         logging.info("[ADMIN] Analytics request")
 
-        db = read_db()
-        subs = db.get("subscriptions", {})
-        usage_all = db.get("usage", {})
+        # ----------------------------------------------------
+        # 📌 STEP 1: FETCH DATA FROM MONGODB (replace JSON)
+        # ----------------------------------------------------
+        
+        # Fetch subscriptions
+        subs_list = list(db.subscriptions.find({}, {"_id": 0}))
 
+        # Convert subscriptions into old JSON structure format:
+        subs = {sub["user_id"]: sub for sub in subs_list}
+
+        # Fetch usage
+        usage_records = list(db.usage.find({}, {"_id": 0}))
+
+        # Convert usage into old nested structure:
+        # usage_all = { user_id: { date: {"units": X} } }
+        usage_all = {}
+        for rec in usage_records:
+            user = rec["user_id"]
+            date = rec["date"]
+            units = rec["units"]
+
+            if user not in usage_all:
+                usage_all[user] = {}
+
+            usage_all[user][date] = {"units": units}
+
+        # ----------------------------------------------------
+        # 📌 STEP 2: SAME ANALYTICS LOGIC (unchanged)
+        # ----------------------------------------------------
         total_users = len(subs)
 
-        # ----- Total units consumed -----
+        # Total units + daily totals for peak day
         total_units = 0
-        day_totals = {}  # for peak day
+        day_totals = {}
 
         for user, days in usage_all.items():
             for date, rec in days.items():
-                units = float(rec.get("units", 0)) if isinstance(rec, dict) else float(rec)
+                units = float(rec.get("units", 0))
                 total_units += units
                 day_totals[date] = day_totals.get(date, 0) + units
 
-        # ----- Highest usage user -----
+        # Highest usage user
         highest_user = None
         highest_usage = 0
 
         for user, days in usage_all.items():
-            user_sum = sum(
-                float(rec.get("units", 0)) if isinstance(rec, dict) else float(rec)
-                for rec in days.values()
-            )
+            user_sum = sum(float(rec.get("units", 0)) for rec in days.values())
             if user_sum > highest_usage:
                 highest_usage = user_sum
                 highest_user = user
 
-        # ----- Average daily usage -----
+        # Average daily usage & peak day
         if day_totals:
             avg_daily = round(total_units / len(day_totals), 2)
             peak_day = max(day_totals, key=day_totals.get)
@@ -237,12 +245,15 @@ def admin_analytics():
             avg_daily = 0
             peak_day = None
 
-        # ----- Plan distribution -----
+        # Plan distribution
         plan_distribution = {}
         for user, sub in subs.items():
             plan = sub.get("plan_name", "Unknown")
             plan_distribution[plan] = plan_distribution.get(plan, 0) + 1
 
+        # ----------------------------------------------------
+        # 📌 STEP 3: RESPONSE (unchanged)
+        # ----------------------------------------------------
         return jsonify({
             "total_users": total_users,
             "total_units": round(total_units, 2),
@@ -256,35 +267,40 @@ def admin_analytics():
     except Exception as e:
         logging.error(f"[ERROR] /admin/analytics failed: {str(e)}")
         return jsonify({"error": "Internal server error", "details": str(e)}), 500
-
+##-------------------------------------------------------------------
+## user and reward calculation fixed version
+##-------------------------------------------------------------------
 @app.route("/status/<user_id>", methods=["GET"])
 def status(user_id):
     try:
         logging.info(f"🔥 /status/{user_id} called")
         logging.info(f"[STATUS] Request for user: {user_id}")
 
-        db = read_db()
-        subs = db.get("subscriptions", {})
-        usage_all = db.get("usage", {})
+        # ---------------- MONGO FETCH -------------------
 
-        # VALIDATION
-        if user_id not in subs:
+        # 1️⃣ Get subscription for user
+        user_sub = db.subscriptions.find_one({"user_id": user_id}, {"_id": 0})
+        if not user_sub:
             return jsonify({"error": "Subscription not found for user"}), 404
 
-        user_sub = subs.get(user_id, {})
-        user_usage = usage_all.get(user_id, {})
+        # 2️⃣ Get usage records for user
+        usage_records = list(db.usage.find({"user_id": user_id}, {"_id": 0}))
+
+        # Rebuild old JSON structure
+        user_usage = {}
+        for rec in usage_records:
+            user_usage[rec["date"]] = {"units": rec["units"]}
+
+        # ---------------- CALCULATIONS (unchanged) -------------------
 
         # Month used
         month_used = 0.0
         for rec in user_usage.values():
-            month_used += float(rec.get("units", 0.0)) if isinstance(rec, dict) else float(rec)
+            month_used += float(rec.get("units", 0.0))
 
         # Prediction
         if user_usage:
-            values = [
-                float(rec["units"] if isinstance(rec, dict) else rec)
-                for rec in user_usage.values()
-            ]
+            values = [float(rec["units"]) for rec in user_usage.values()]
             avg_daily = sum(values) / len(values)
             predicted_units = round(avg_daily * 30, 2)
         else:
@@ -292,24 +308,24 @@ def status(user_id):
 
         # Today
         today_key = datetime.now().date().isoformat()
-        today_rec = user_usage.get(today_key, 0.0)
-        today_used = float(today_rec.get("units", 0)) if isinstance(today_rec, dict) else float(today_rec)
+        today_rec = user_usage.get(today_key, {"units": 0})
+        today_used = float(today_rec.get("units", 0))
 
+        # Plan details
         plan_limit = int(user_sub.get("plan_units", 0))
         plan_name = user_sub.get("plan_name")
         progress_percent = round((month_used / plan_limit) * 100, 2) if plan_limit else 0
 
-        # ------------------------------------------------
-        # ✅ REWARD CALCULATION (Correct position)
-        # ------------------------------------------------
+        # ---------------- REWARD CALCULATION -------------------
+
         reward_points = calculate_rewards(month_used, plan_limit)
 
-        db = read_db()  # read again to avoid overwrite
-        db.setdefault("rewards", {})
-        db["rewards"][user_id] = reward_points
-        write_db(db)
-        # ------------------------------------------------
-
+        # Save reward points to Mongo
+        db.rewards.update_one(
+            {"user_id": user_id},
+            {"$set": {"reward_points": reward_points}},
+            upsert=True
+        )
         return jsonify({
             "user_id": user_id,
             "plan_name": plan_name,
@@ -332,10 +348,16 @@ def status(user_id):
 def usage_history_raw(user_id):
     logging.info(f"🔥 /usage-history/{user_id} called")
     logging.info(f"[USAGE HISTORY] Request for user: {user_id}")
-    db = read_db()
-    usage_all = db.get("usage", {})
-    user_usage = usage_all.get(user_id, {})
+
+    # ---- FETCH FROM MONGO ----
+    usage_records = list(db.usage.find({"user_id": user_id}, {"_id": 0}))
+    user_usage = {}
+    for rec in usage_records:
+        date = rec["date"]
+        units = rec["units"]
+        user_usage[date] = {"units": units}
     return jsonify({"history": user_usage}), 200
+
 # ---------------------------------------------
 # TASK 4 — AI COACHING API
 # --------------------------------------------- 
@@ -345,10 +367,17 @@ def coach(user_id):
         logging.info(f"🔥 /coach/{user_id} called")
         logging.info(f"[COACH] Request for user: {user_id}")
 
-        db = read_db()
-        usage_all = db.get("usage", {})
+        # ---- FETCH USAGE FROM MONGO ----
+        usage_records = list(db.usage.find({"user_id": user_id}, {"_id": 0}))
 
-        user_usage = usage_all.get(user_id, {})
+        # Convert into old structure: { "date": {"units": X} }
+        user_usage = {}
+        for rec in usage_records:
+            date = rec["date"]
+            units = rec["units"]
+            user_usage[date] = {"units": units}
+
+        # ---------------- LOGIC (UNCHANGED) ----------------
 
         if not user_usage:
             return jsonify({
@@ -357,11 +386,9 @@ def coach(user_id):
 
         total = 0
         days = 0
+
         for rec in user_usage.values():
-            if isinstance(rec, dict):
-                total += float(rec.get("units", 0.0))
-            else:
-                total += float(rec)
+            total += float(rec.get("units", 0.0))
             days += 1
 
         avg = total / days if days else 0
@@ -385,22 +412,21 @@ def coach(user_id):
     except Exception as e:
         logging.error(f"[ERROR] /coach failed: {str(e)}")
         return jsonify({"error": "Internal error", "details": str(e)}), 500
-
 # ---------------------------------------------
 # TASK 2 — GET SUBSCRIPTION DETAILS
 # ---------------------------------------------
 @app.route("/subscription/<user_id>", methods=["GET"])
 def get_subscription(user_id):
-    logging.info("🔥 /subscribe called")
+    logging.info("🔥 /subscription called")
     logging.info(f"[GET SUBSCRIPTION] Request for user: {user_id}")
 
-    db = read_db()
-    subs = db.get("subscriptions", {})
+    # Fetch subscription from MongoDB
+    sub = db.subscriptions.find_one({"user_id": user_id}, {"_id": 0})
 
-    if user_id not in subs:
+    if not sub:
         return jsonify({"error": "Subscription not found"}), 404
 
-    return jsonify({"subscription": subs[user_id]}), 200
+    return jsonify({"subscription": sub}), 200
 
 # ---------------------------------------------
 # UPDATE SUBSCRIPTION  (TASK 3C VALIDATION)
@@ -409,26 +435,30 @@ def get_subscription(user_id):
 def update_subscription(user_id):
     logging.info(f"🔥 /update/{user_id} called")
     logging.info(f"[UPDATE] Updating subscription for user: {user_id}")
-    db = read_db()
-    subs = db.get("subscriptions", {})
 
-    if user_id not in subs:
+    # ---- FETCH EXISTING SUBSCRIPTION FROM MONGO ----
+    existing = db.subscriptions.find_one({"user_id": user_id})
+    if not existing:
         return jsonify({"error": "User not subscribed"}), 404
 
     incoming = request.get_json() or request.form
 
-    # VALIDATE + UPDATE
+    # Prepare update fields
+    update_fields = {}
+
+    # -------- VALIDATE & ADD TO UPDATE FIELDS --------
+
     if "plan_name" in incoming:
         if not incoming["plan_name"]:
             return jsonify({"error": "plan_name cannot be empty"}), 400
-        subs[user_id]["plan_name"] = incoming["plan_name"]
+        update_fields["plan_name"] = incoming["plan_name"]
 
     if "plan_units" in incoming:
         try:
             u = int(incoming["plan_units"])
             if u <= 0:
                 return jsonify({"error": "plan_units must be > 0"}), 400
-            subs[user_id]["plan_units"] = u
+            update_fields["plan_units"] = u
         except:
             return jsonify({"error": "plan_units must be an integer"}), 400
 
@@ -437,14 +467,25 @@ def update_subscription(user_id):
             p = float(incoming["price"])
             if p < 0:
                 return jsonify({"error": "price cannot be negative"}), 400
-            subs[user_id]["price"] = p
+            update_fields["price"] = p
         except:
             return jsonify({"error": "price must be a number"}), 400
 
-    db["subscriptions"] = subs
-    write_db(db)
+    # ---- UPDATE IN MONGODB ----
+    if update_fields:
+        db.subscriptions.update_one(
+            {"user_id": user_id},
+            {"$set": update_fields}
+        )
 
-    return jsonify({"message": "Subscription updated", "updated_data": subs[user_id]}), 200
+    # Fetch updated data to return clean response (without _id)
+    updated = db.subscriptions.find_one({"user_id": user_id}, {"_id": 0})
+
+    return jsonify({
+        "message": "Subscription updated",
+        "updated_data": updated
+    }), 200
+
 # -------------------------------------------------------------
 # TASK 5 — ADVANCED PREDICTION API
 # -------------------------------------------------------------
@@ -453,14 +494,14 @@ def predict_advanced(user_id):
     try:
         logging.info(f"[PREDICT-ADVANCED] Request for user: {user_id}")
 
-        db = read_db()
-        usage = db.get("usage", {}).get(user_id, {})
+        # ---- FETCH USAGE FROM MONGO ----
+        usage_records = list(db.usage.find({"user_id": user_id}, {"_id": 0}))
+
+        # rebuild old dict format: { "date": {"units": x} }
+        usage = { rec["date"]: {"units": rec["units"]} for rec in usage_records }
 
         # convert dict → list of numbers
-        daily_values = [
-            v["units"] if isinstance(v, dict) else v
-            for v in usage.values()
-        ]
+        daily_values = [rec["units"] for rec in usage.values()]
 
         if not daily_values:
             return jsonify({
@@ -499,6 +540,7 @@ def predict_advanced(user_id):
         logging.error(f"[ERROR] predict_advanced: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
+
 # -------------------------------------------------------------
 # TASK 7 — NOTIFICATION RULES API
 # -------------------------------------------------------------
@@ -508,44 +550,41 @@ def alerts(user_id):
         logging.info(f"🔥 /alerts/{user_id} called")
         logging.info(f"[ALERTS] Request for user: {user_id}")
 
-        db = read_db()
-        subs = db.get("subscriptions", {})
-        usage_all = db.get("usage", {})
-
-        user_sub = subs.get(user_id)
-        user_usage = usage_all.get(user_id, {})
-
-        alerts = []
-
-        # If no subscription or no usage
+        # ---- FETCH SUBSCRIPTION ----
+        user_sub = db.subscriptions.find_one({"user_id": user_id}, {"_id": 0})
         if not user_sub:
             return jsonify({"alerts": ["User not subscribed"]}), 200
+
+        # ---- FETCH USAGE ----
+        usage_records = list(db.usage.find({"user_id": user_id}, {"_id": 0}))
+
+        # Convert to old format {date: {"units": value}}
+        user_usage = {}
+        for rec in usage_records:
+            date = rec["date"]
+            units = rec["units"]
+            user_usage[date] = {"units": units}
 
         if not user_usage:
             return jsonify({"alerts": ["No usage data available"]}), 200
 
+        alerts = []
+
         # Extract needed values
         plan_limit = user_sub.get("plan_units", 0)
 
-        # Month total
-        total_used = sum(
-            float(rec.get("units", 0)) if isinstance(rec, dict) else float(rec)
-            for rec in user_usage.values()
-        )
+        # Total used this month
+        total_used = sum(float(rec["units"]) for rec in user_usage.values())
 
-        # Detect nearing limit (80%)
+        # ----- DETECT 80% LIMIT -----
         if plan_limit > 0:
             if 0.8 * plan_limit <= total_used < plan_limit:
                 alerts.append("⚠️ You have used more than 80% of your monthly plan.")
-
             if total_used >= plan_limit:
                 alerts.append("🚨 You exceeded your monthly usage limit!")
 
-        # Predict next month usage using average
-        daily_values = [
-            float(rec.get("units", 0)) if isinstance(rec, dict) else float(rec)
-            for rec in user_usage.values()
-        ]
+        # ----- PREDICTION -----
+        daily_values = [float(rec["units"]) for rec in user_usage.values()]
 
         if daily_values:
             avg_daily = sum(daily_values) / len(daily_values)
@@ -554,14 +593,14 @@ def alerts(user_id):
             if predicted > plan_limit:
                 alerts.append("📈 Your predicted usage may exceed your subscription limit.")
 
-        # Compare today vs yesterday
+        # ----- TODAY VS YESTERDAY -----
         dates = sorted(user_usage.keys())
         if len(dates) >= 2:
             today = dates[-1]
             yesterday = dates[-2]
 
-            today_units = float(user_usage[today].get("units", 0))
-            y_units = float(user_usage[yesterday].get("units", 0))
+            today_units = float(user_usage[today]["units"])
+            y_units = float(user_usage[yesterday]["units"])
 
             if today_units > y_units:
                 alerts.append("🔥 Today's usage is higher than yesterday.")
@@ -569,7 +608,7 @@ def alerts(user_id):
             if y_units > 0 and today_units > 2 * y_units:
                 alerts.append("⚡ Sudden usage spike detected.")
 
-        # If no alerts found
+        # ----- DEFAULT ALERT -----
         if not alerts:
             alerts = ["Everything looks normal. 👍"]
 
@@ -578,43 +617,37 @@ def alerts(user_id):
     except Exception as e:
         logging.error(f"[ERROR] alerts: {str(e)}")
         return jsonify({"error": str(e)}), 500
-
-
+# ---------------------------------------------
+# TASK 8 — INTEGRATION WITH ML MODULES  
+# ---------------------------------------------
 @app.get("/api/get-energy-suggestion")
 def api_energy_suggestion():
     try:
         user_id = request.args.get("user_id", "user1")
 
-        data = read_db()
-        usage_all = data.get("usage", {})
-        subs_all = data.get("subscriptions", {})
-
-        # ----------- COMPATIBILITY SHIM -----------
-        # Some old ML code expects "usage_history"
-        if "usage_history" not in data:
-            data["usage_history"] = usage_all
-        # ------------------------------------------
-
-        # ----------- VALIDATION -----------
-        if user_id not in usage_all:
-            return jsonify({"error": "User not found"}), 404
-
-        if user_id not in subs_all:
+        # ---- FETCH SUBSCRIPTION FROM MONGO ----
+        sub = db.subscriptions.find_one({"user_id": user_id}, {"_id": 0})
+        if not sub:
             return jsonify({"error": "User subscription not found"}), 404
 
-        user_usage = usage_all[user_id]
+        # ---- FETCH USAGE FROM MONGO ----
+        usage_records = list(db.usage.find({"user_id": user_id}, {"_id": 0}))
 
-        if not user_usage:
+        if not usage_records:
             return jsonify({"error": "No usage history for this user"}), 400
-        # ----------------------------------
 
-        # convert dict → {0: units1, 1: units2, ...}
+        # ---- SORT USAGE BY DATE ----
+        usage_records.sort(key=lambda x: x["date"])
+
+        # ---- BUILD numeric_usage FOR ML MODEL ----
         numeric_usage = {
-            idx: (rec["units"] if isinstance(rec, dict) else rec)
-            for idx, rec in enumerate(user_usage.values())
+            idx: rec["units"]
+            for idx, rec in enumerate(usage_records)
         }
 
-        plan_units = subs_all[user_id].get("plan_units", 100)
+        plan_units = sub.get("plan_units", 100)
+
+        # ---- CALL ML MODULE ----
         suggestion = get_energy_suggestion(numeric_usage, plan_units)
 
         return jsonify({
@@ -626,36 +659,27 @@ def api_energy_suggestion():
         logging.error(f"[ERROR] get-energy-suggestion: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-    
+  # ---------------------------------------------
+# TASK 9 — PREDICT NEXT USAGE VIA ML MODEL      
+# ---------------------------------------------  
 @app.get("/api/predict_next_usage")
 def api_predict_usage():
     try:
         user_id = request.args.get("user_id", "user1")
 
-        data = read_db()
+        # ---- FETCH USAGE FROM MONGO ----
+        usage_records = list(db.usage.find({"user_id": user_id}, {"_id": 0}))
 
-        # -------- Compatibility shim --------
-        if "usage_history" not in data and "usage" in data:
-            data["usage_history"] = data["usage"]
-        # -----------------------------------
-
-        usage_all = data.get("usage", {})
-
-        # ----------- VALIDATION -----------
-        if user_id not in usage_all:
-            return jsonify({"error": "User not found"}), 404
-
-        user_usage = usage_all[user_id]
-
-        if not user_usage:
+        if not usage_records:
             return jsonify({"error": "No usage history for this user"}), 400
-        # ----------------------------------
 
-        daily_values = [
-            rec["units"] if isinstance(rec, dict) else rec
-            for rec in user_usage.values()
-        ]
+        # ---- SORT BY DATE ----
+        usage_records.sort(key=lambda x: x["date"])
 
+        # ---- BUILD LIST OF UNITS ----
+        daily_values = [rec["units"] for rec in usage_records]
+
+        # ---- CALL ML MODEL ----
         predicted = predict_next_usage(daily_values)
 
         return jsonify({
@@ -666,17 +690,17 @@ def api_predict_usage():
     except Exception as e:
         logging.error(f"[ERROR] predict_next_usage: {str(e)}")
         return jsonify({"error": str(e)}), 500
-
-
+# ---------------------------------------------
+# TASK 10 — REWARD POINTS SYSTEM
 @app.get("/rewards/<user_id>")
 def get_rewards(user_id):
     try:
         logging.info(f"🔥 /rewards/{user_id} called")
 
-        db = read_db()
-        rewards = db.get("rewards", {})
-        
-        user_points = rewards.get(user_id, 0)
+        # ---- FETCH REWARD FROM MONGO ----
+        reward_doc = db.rewards.find_one({"user_id": user_id}, {"_id": 0})
+
+        user_points = reward_doc["reward_points"] if reward_doc else 0
 
         return jsonify({
             "user_id": user_id,
@@ -686,7 +710,9 @@ def get_rewards(user_id):
     except Exception as e:
         logging.error(f"[ERROR] get_rewards: {str(e)}")
         return jsonify({"error": str(e)}), 500
-    
+# ---------------------------------------------
+## CLAIM REWARDS
+# ---------------------------------------------
 @app.post("/rewards/claim")
 def claim_rewards():
     try:
@@ -696,15 +722,16 @@ def claim_rewards():
         if not user_id:
             return jsonify({"error": "user_id is required"}), 400
 
-        db = read_db()
-        rewards = db.get("rewards", {})
+        # ---- FETCH USER REWARD FROM MONGO ----
+        reward_doc = db.rewards.find_one({"user_id": user_id}, {"_id": 0})
+        current = reward_doc["reward_points"] if reward_doc else 0
 
-        current = rewards.get(user_id, 0)
-
-        # reset reward points after claim
-        rewards[user_id] = 0
-        db["rewards"] = rewards
-        write_db(db)
+        # ---- RESET REWARD POINTS TO 0 ----
+        db.rewards.update_one(
+            {"user_id": user_id},
+            {"$set": {"reward_points": 0}},
+            upsert=True
+        )
 
         return jsonify({
             "message": "Rewards claimed successfully",
