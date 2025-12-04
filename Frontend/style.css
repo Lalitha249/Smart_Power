@@ -19,7 +19,7 @@ body {
     background: linear-gradient(135deg, #2563eb, #0ea5e9);
     padding: 50px 20px;
     text-align: center;
-    color: white;
+    color: rgb(239, 8, 8);
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
     border-radius: 0 0 30px 30px;
     position: relative;
@@ -75,7 +75,7 @@ body {
     transform: translateX(-50%);
     width: 80px;
     height: 4px;
-    background: linear-gradient(90deg, #2563eb, #0ea5e9);
+    background: linear-gradient(90deg, #eb010d, #49060d);
     border-radius: 2px;
 }
 
@@ -422,4 +422,4 @@ body {
         width: 95%;
         padding: 20px;
     }
-}
+} 
