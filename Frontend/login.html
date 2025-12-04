@@ -6,7 +6,6 @@
     <title>SmartPower - Login</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        /* Additional styles for login page */
         .auth-container {
             max-width: 400px;
             margin: 4rem auto;
@@ -38,24 +37,48 @@
             margin-bottom: 30px;
         }
         
-        .auth-toggle {
-            margin-top: 20px;
-            color: #64748b;
+        .form-input {
+            width: 100%;
+            padding: 14px;
+            margin-bottom: 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
         }
         
-        .auth-toggle a {
-            color: #2563eb;
-            text-decoration: none;
+        .form-input:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        
+        .login-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #2563eb, #0ea5e9);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
             font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
         }
         
-        .demo-note {
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
+        }
+        
+        .demo-info {
             margin-top: 25px;
             padding: 15px;
             background: #f0f9ff;
             border-radius: 10px;
             border-left: 4px solid #2563eb;
             text-align: left;
+            font-size: 14px;
         }
     </style>
 </head>
@@ -64,41 +87,39 @@
         <div class="auth-card">
             <div class="auth-logo">⚡</div>
             <h1 class="auth-title">SmartPower</h1>
-            <p class="auth-subtitle">Smart Electricity Management System</p>
+            <p class="auth-subtitle">Login to your energy dashboard</p>
             
-            <div class="form-group">
-                <input type="email" id="email" class="form-input" placeholder="Email Address" style="margin-bottom: 20px;">
+            <div>
+                <input type="email" id="email" class="form-input" placeholder="Email Address" value="user1@example.com">
             </div>
             
-            <div class="form-group">
-                <input type="password" id="password" class="form-input" placeholder="Password" style="margin-bottom: 25px;">
+            <div>
+                <input type="password" id="password" class="form-input" placeholder="Password" value="password123">
             </div>
             
-            <button class="select-btn" style="width: 100%; padding: 15px; font-size: 16px;" onclick="handleLogin()">
-                Login to Dashboard
+            <button class="login-btn" onclick="handleLogin()">
+                🔐 Login to Dashboard
             </button>
             
-            <div class="auth-toggle">
-                Don't have an account? <a href="#" onclick="toggleRegister()">Register here</a>
-            </div>
-            
-            <div class="demo-note">
-                <strong>Demo Access:</strong><br>
-                Use any email and password<br>
-                Click login to continue
+            <div class="demo-info">
+                <strong>Demo Credentials:</strong><br>
+                Any email/password works<br>
+                User ID: <code>user1</code> will be set
             </div>
         </div>
     </div>
 
+    <script src="dashboard.js"></script>
     <script>
-        function handleLogin() {
-            // For demo, just redirect to main page
-            window.location.href = 'index.html';
-        }
+        // Auto-focus email field
+        document.getElementById('email')?.focus();
         
-        function toggleRegister() {
-            alert('Registration feature will be implemented with backend');
-        }
+        // Handle Enter key
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                handleLogin();
+            }
+        });
     </script>
 </body>
 </html>
