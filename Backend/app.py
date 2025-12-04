@@ -62,6 +62,27 @@ def predict_stub():
     pred = float(sum(history) / len(history)) if history else 0.0
     return jsonify({"predicted_next_month_units": round(pred * 30, 3)}), 200
 # ---------------------------------------------
+#plan add (admin only)
+# ---------------------------------------------
+@app.post("/plans/add")
+def add_plan():
+    body = request.get_json() or {}
+
+    plan_id = int(body.get("plan_id"))
+    name = body.get("plan_name")
+    limit = int(body.get("limit"))
+    price = float(body.get("price"))
+
+    db.plans.insert_one({
+        "plan_id": plan_id,
+        "plan_name": name,
+        "limit": limit,
+        "price": price
+    })
+
+    return jsonify({"message": "Plan added successfully"}), 201
+
+# ---------------------------------------------
 # SUBSCRIBE  (with validation)
 # ---------------------------------------------
 @app.route("/subscribe", methods=["POST"])
@@ -176,6 +197,101 @@ def usage_add_specific_date():
     except Exception as e:
         logging.error(f"[ERROR] /usage/add failed: {str(e)}")
         return jsonify({"error": "Internal server error", "details": str(e)}), 500
+
+# -------------------------------
+# HELPER: get plan by plan_id
+# -------------------------------
+def get_plan_by_id(plan_id):
+    try:
+        # plan_id might be numeric or string, keep consistent
+        plan = db.plans.find_one({"plan_id": int(plan_id)}, {"_id": 0})
+        return plan
+    except Exception:
+        return None
+
+# ---------------------------------------------
+# POST /plan/subscribe  (subscribe via plan_id)
+# Input: {"user_id": "user1", "plan_id": 2}
+# ---------------------------------------------
+@app.post("/plan/subscribe")
+def plan_subscribe():
+    try:
+        body = request.get_json() or {}
+        user_id = body.get("user_id")
+        plan_id = body.get("plan_id")
+
+        if not user_id or plan_id is None:
+            return jsonify({"error": "user_id and plan_id are required"}), 400
+
+        plan = get_plan_by_id(plan_id)
+        if not plan:
+            return jsonify({"error": "Plan not found"}), 404
+
+        # upsert subscription document: store plan_id and plan details
+        db.subscriptions.update_one(
+            {"user_id": user_id},
+            {"$set": {
+                "user_id": user_id,
+                "plan_id": plan.get("plan_id"),
+                "plan_name": plan.get("plan_name"),
+                "plan_units": int(plan.get("limit", 0)),
+                "price": float(plan.get("price", 0.0)),
+                "start_ts": datetime.utcnow().isoformat(),
+                "status": "active"
+            }},
+            upsert=True
+        )
+
+        return jsonify({"message": "Subscribed to plan", "plan": plan}), 201
+
+    except Exception as e:
+        logging.error(f"[ERROR] /plan/subscribe: {e}")
+        return jsonify({"error": str(e)}), 500
+
+# ---------------------------------------------
+# GET /usage/get/<user_id>
+# Returns: { "today": X, "monthly": Y, "limit": Z, "remaining": R }
+# ---------------------------------------------
+@app.get("/usage/get/<user_id>")
+def usage_get(user_id):
+    try:
+        # fetch usage records for this user
+        usage_records = list(db.usage.find({"user_id": user_id}, {"_id": 0}))
+        if not usage_records:
+            # if no usage, return zeros but still check subscription for limit
+            sub = db.subscriptions.find_one({"user_id": user_id}, {"_id": 0})
+            plan_limit = int(sub.get("plan_units", 0)) if sub else 0
+            return jsonify({"today": 0, "monthly": 0, "limit": plan_limit, "remaining": plan_limit}), 200
+
+        # sum monthly (assume all records in usage collection are daily entries for current month or full history)
+        total_month = 0.0
+        today_key = datetime.utcnow().date().isoformat()
+        today_value = 0.0
+
+        for rec in usage_records:
+            units = float(rec.get("units", 0))
+            total_month += units
+            if rec.get("date") == today_key:
+                today_value = units
+
+        sub = db.subscriptions.find_one({"user_id": user_id}, {"_id": 0})
+        plan_limit = int(sub.get("plan_units", 0)) if sub else 0
+        remaining = plan_limit - total_month if plan_limit else 0
+
+        # clamp remaining to 0 minimum
+        if remaining < 0:
+            remaining = 0
+
+        return jsonify({
+            "today": round(today_value, 2),
+            "monthly": round(total_month, 2),
+            "limit": plan_limit,
+            "remaining": round(remaining, 2)
+        }), 200
+
+    except Exception as e:
+        logging.error(f"[ERROR] /usage/get: {e}")
+        return jsonify({"error": str(e)}), 500
 
 # -------------------------------------------------------------
 # TASK 6 — ADMIN ANALYTICS API
@@ -741,6 +857,41 @@ def claim_rewards():
     except Exception as e:
         logging.error(f"[ERROR] claim_rewards: {str(e)}")
         return jsonify({"error": str(e)}), 500
+# ---------------------------------------------
+  ##register user  
+@app.post("/register")
+def register_user():
+    try:
+        body = request.get_json() or {}
+
+        user_id = body.get("user_id")
+        name = body.get("name")
+        email = body.get("email")
+
+        if not user_id or not email:
+            return jsonify({"error": "user_id and email are required"}), 400
+
+        # check if user exists
+        existing = db.users.find_one({"user_id": user_id})
+        if existing:
+            return jsonify({"error": "User already exists"}), 409
+
+        db.users.insert_one({
+            "user_id": user_id,
+            "name": name,
+            "email": email,
+            "created_at": datetime.utcnow().isoformat()
+        })
+
+        return jsonify({"message": "User registered successfully"}), 201
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.get("/users")
+def get_all_users():
+    users = list(db.users.find({}, {"_id": 0}))
+    return jsonify({"users": users}), 200
 
 # ---------------------------------------------
 # RUN APP
