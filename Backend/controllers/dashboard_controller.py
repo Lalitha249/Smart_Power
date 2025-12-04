@@ -1,52 +1,60 @@
 from flask import jsonify
-from utils.helper import read_db
+from db.mongo import db
 from datetime import datetime
 
 def get_user_status(user_id):
-    db = read_db()
+    # -----------------------------
+    # 1️⃣ Fetch subscription from Mongo
+    # -----------------------------
+    user_sub = db.subscriptions.find_one({"user_id": user_id}, {"_id": 0})
+    if not user_sub:
+        return jsonify({"error": "Subscription not found"}), 404
 
-    subscriptions = db.get("subscriptions", {})
-    usage_all = db.get("usage", {})
+    # -----------------------------
+    # 2️⃣ Fetch usage records from Mongo
+    # -----------------------------
+    usage_records = list(db.usage.find({"user_id": user_id}, {"_id": 0}))
 
-    user_sub = subscriptions.get(user_id, {})
-    user_usage = usage_all.get(user_id, {})
+    # Convert to old dict format: {date: {"units": x}}
+    user_usage = {}
+    for rec in usage_records:
+        user_usage[rec["date"]] = {"units": rec["units"]}
 
-    # 1) Month used
+    # -----------------------------
+    # 3️⃣ Calculate month_used
+    # -----------------------------
     month_used = 0.0
     for rec in user_usage.values():
-        if isinstance(rec, dict):
-            month_used += float(rec.get("units", 0.0))
-        else:
-            month_used += float(rec)
+        month_used += float(rec.get("units", 0.0))
 
-    # 2) Predicted usage
+    # -----------------------------
+    # 4️⃣ Predict next month usage
+    # -----------------------------
     if user_usage:
-        daily_values = []
-        for rec in user_usage.values():
-            if isinstance(rec, dict):
-                daily_values.append(float(rec.get("units", 0.0)))
-            else:
-                daily_values.append(float(rec))
-        avg_daily = sum(daily_values) / len(daily_values)
+        values = [float(rec["units"]) for rec in user_usage.values()]
+        avg_daily = sum(values) / len(values)
         predicted_units = round(avg_daily * 30, 2)
     else:
         predicted_units = 0.0
 
-    # 3) Today's usage
+    # -----------------------------
+    # 5️⃣ Today's usage
+    # -----------------------------
     today_key = datetime.now().date().isoformat()
-    today_rec = user_usage.get(today_key, 0.0)
-    if isinstance(today_rec, dict):
-        today_used = float(today_rec.get("units", 0.0))
-    else:
-        today_used = float(today_rec)
+    today_rec = user_usage.get(today_key, {"units": 0})
+    today_used = float(today_rec.get("units", 0))
 
-    # 4) Plan information
+    # -----------------------------
+    # 6️⃣ Plan details
+    # -----------------------------
     plan_limit = int(user_sub.get("plan_units", 0))
-    plan = user_sub.get("plan_name")   # already fixed as "plan"
+    plan = user_sub.get("plan_name")
 
     progress_percent = round((month_used / plan_limit) * 100, 2) if plan_limit else 0.0
 
-    # 5) Return PURE JSON
+    # -----------------------------
+    # 7️⃣ Final JSON Response
+    # -----------------------------
     return jsonify({
         "user_id": user_id,
         "today_used": today_used,
