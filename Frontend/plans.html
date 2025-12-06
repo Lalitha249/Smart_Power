@@ -59,6 +59,7 @@
             <a href="index.html" style="color: white; margin-right: 20px; text-decoration: none;">Dashboard</a>
             <a href="live.html" style="color: white; margin-right: 20px; text-decoration: none;">Live Usage</a>
             <a href="rewards.html" style="color: white; text-decoration: none;">Rewards</a>
+            <a href="login.html" style="color: white; margin-left: 20px; text-decoration: none;">Account</a>
         </div>
     </div>
 
@@ -184,25 +185,112 @@
         
         function subscribePlan() {
             const plan = localStorage.getItem('selectedPlan') || 'Standard';
+            const userEmail = localStorage.getItem('user_email') || 'demo@example.com';
+            const userId = localStorage.getItem('user_id') || 'user1';
+
             const resultEl = document.getElementById('subscribeResult');
-            
+
+            // Show loading
             resultEl.innerHTML = `
-                <div style="background: #f0fdf4; color: #065f46; padding: 15px; border-radius: 8px; border-left: 4px solid #10b981;">
-                    ✅ Successfully subscribed to <strong>${plan}</strong> plan!<br>
-                    <small>Redirecting to dashboard...</small>
+                <div style="background:#f0f9ff; color:#1e40af; padding:15px; border-radius:8px; display:flex; align-items:center; gap:10px;">
+                    <div class="loading-spinner"></div>
+                    Subscribing to ${plan} plan...
                 </div>
             `;
-            
-            // Redirect after 2 seconds
-            setTimeout(() => {
-                window.location.href = 'index.html';
-            }, 2000);
+
+            fetch('http://localhost:5000/plan/subscribe', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    user_id: userId,
+                    plan_name: plan,
+                    user_email: userEmail
+                })
+            })
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}`);
+                }
+                return res.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    resultEl.innerHTML = `
+                        <div style="background:#f0fdf4; color:#065f46; padding:15px; border-radius:8px;">
+                            ✅ ${data.message || 'Successfully subscribed to ' + plan + ' plan!'}
+                            <br><small>Redirecting to dashboard...</small>
+                        </div>
+                    `;
+
+                    // Save plan to localStorage
+                    localStorage.setItem('currentPlan', plan);
+                    
+                    // Redirect to dashboard after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 2000);
+                } else {
+                    resultEl.innerHTML = `
+                        <div style="background:#fef2f2; color:#991b1b; padding:15px; border-radius:8px;">
+                            ❌ ${data.error || 'Subscription failed'}
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Subscription error:', error);
+                resultEl.innerHTML = `
+                    <div style="background:#fef2f2; color:#991b1b; padding:15px; border-radius:8px;">
+                        ❌ Failed to connect to backend server.
+                        <br><small>Error: ${error.message}</small>
+                        <br><br>
+                        <button onclick="subscribePlan()" style="padding:8px 16px; background:#ef4444; color:white; border:none; border-radius:6px; cursor:pointer;">
+                            Try Again
+                        </button>
+                        <button onclick="window.location.href='index.html'" style="padding:8px 16px; background:#64748b; color:white; border:none; border-radius:6px; cursor:pointer; margin-left:10px;">
+                            Go to Dashboard
+                        </button>
+                    </div>
+                `;
+            });
         }
         
         // Load saved selection
         document.addEventListener('DOMContentLoaded', function() {
             const savedPlan = localStorage.getItem('selectedPlan') || 'Standard';
             selectPlan(savedPlan);
+            
+            // Add loading spinner CSS if not present
+            if (!document.querySelector('style[data-loading-spinner]')) {
+                const style = document.createElement('style');
+                style.setAttribute('data-loading-spinner', 'true');
+                style.textContent = `
+                    .loading-spinner {
+                        display: inline-block;
+                        width: 20px;
+                        height: 20px;
+                        border: 3px solid rgba(255,255,255,0.3);
+                        border-radius: 50%;
+                        border-top-color: #3b82f6;
+                        animation: spin 1s ease-in-out infinite;
+                    }
+                    @keyframes spin {
+                        to { transform: rotate(360deg); }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            // Add click handlers for navigation links
+            document.querySelectorAll('a[href]').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    if (this.getAttribute('href').startsWith('http')) return;
+                    e.preventDefault();
+                    window.location.href = this.getAttribute('href');
+                });
+            });
         });
     </script>
 </body>
