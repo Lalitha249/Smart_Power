@@ -4,9 +4,212 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartPower - Subscription</title>
+    <title>SmartPower - Dashboard</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Navigation Styles */
+        .main-nav {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 25px 0 35px 0;
+            flex-wrap: wrap;
+        }
+        
+        .nav-btn {
+            background: white;
+            color: #2563eb;
+            border: 2px solid #2563eb;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
+        }
+        
+        .nav-btn:hover {
+            background: #2563eb;
+            color: white;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.2);
+        }
+        
+        .nav-btn.active {
+            background: #2563eb;
+            color: white;
+        }
+        
+        .user-info {
+            text-align: center;
+            margin: 15px 0;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            color: white;
+            font-size: 14px;
+        }
+        
+        .user-email {
+            font-weight: 600;
+            color: #fbbf24;
+        }
+        
+        .logout-btn {
+            background: rgba(239, 68, 68, 0.2);
+            color: white;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-left: 10px;
+            transition: all 0.2s;
+        }
+        
+        .logout-btn:hover {
+            background: rgba(239, 68, 68, 0.3);
+        }
+        
+        /* Quick Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            text-align: center;
+            transition: transform 0.3s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #2563eb;
+            margin: 10px 0;
+        }
+        
+        .stat-label {
+            color: #64748b;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .stat-icon {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        /* Quick Action Buttons */
+        .quick-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin: 25px 0;
+            flex-wrap: wrap;
+        }
+        
+        .action-btn {
+            background: linear-gradient(135deg, #10b981, #34d399);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+            text-decoration: none;
+        }
+        
+        .action-btn.secondary {
+            background: linear-gradient(135deg, #8b5cf6, #a78bfa);
+        }
+        
+        .action-btn.warning {
+            background: linear-gradient(135deg, #f59e0b, #fbbf24);
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        /* Page Links Section */
+        .page-links {
+            margin: 40px 0;
+            text-align: center;
+        }
+        
+        .page-links h3 {
+            color: #1e293b;
+            margin-bottom: 20px;
+            font-size: 22px;
+        }
+        
+        .page-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        
+        .page-card {
+            background: white;
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+            text-align: center;
+            transition: all 0.3s;
+            text-decoration: none;
+            color: inherit;
+            border: 2px solid transparent;
+        }
+        
+        .page-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
+            border-color: #2563eb;
+        }
+        
+        .page-icon {
+            font-size: 40px;
+            margin-bottom: 15px;
+            color: #2563eb;
+        }
+        
+        .page-card h4 {
+            color: #1e293b;
+            margin-bottom: 10px;
+            font-size: 20px;
+        }
+        
+        .page-card p {
+            color: #64748b;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+    </style>
 </head>
 
 <body>
@@ -14,93 +217,81 @@
     <!-- HERO HEADER -->
     <div class="hero">
         <h1 class="title">⚡ SmartPower</h1>
-        <p class="tagline">Smart Electricity Subscription System</p>
-    </div>
-
-    <!-- Add this after the hero section -->
-    <div style="text-align: center; margin: 30px 0; padding: 0 20px;">
-        <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
-            <a href="login.html" 
-                style="background: #2563eb; color: white; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: 600;">
-                🔐 Login
+        <p class="tagline">Smart Electricity Management Dashboard</p>
+        
+        <!-- USER INFO (Shows if logged in) -->
+        <div id="userInfo" class="user-info" style="display: none;">
+            Logged in as: <span id="userEmail" class="user-email">loading...</span>
+            <button class="logout-btn" onclick="handleLogout()">Logout</button>
+        </div>
+        
+        <!-- ✅ MAIN NAVIGATION -->
+        <div class="main-nav">
+            <a href="index.html" class="nav-btn active">
+                📊 Dashboard
             </a>
-            <a href="plans.html" 
-                style="background: #10b981; color: white; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: 600;">
-                📋 View Plans
+            <a href="plans.html" class="nav-btn">
+                📋 Plans
             </a>
-            <a href="live.html" 
-                style="background: #f59e0b; color: white; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: 600;">
+            <a href="live.html" class="nav-btn">
                 ⚡ Live Usage
             </a>
-            <a href="rewards.html" 
-                style="background: #8b5cf6; color: white; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: 600;">
+            <a href="rewards.html" class="nav-btn">
                 🏆 Rewards
             </a>
-        </div>
-        <p style="color: #64748b; margin-top: 15px; font-size: 14px;">
-            Try our new pages! All data is dummy/simulated for now.
-        </p>
-    </div>
-
-    <!-- PLAN CARDS -->
-    <div class="plans-section">
-        <h2 class="section-title">Choose Your Plan</h2>
-
-        <div class="plan-cards">
-            <div class="plan-card basic" onclick="selectPlan('Basic')">
-                <h3>Basic</h3>
-                <p class="units">100 units / month</p>
-                <p class="price">₹650</p>
-                <button class="select-btn">Choose Plan</button>
-            </div>
-
-            <div class="plan-card standard" onclick="selectPlan('Standard')">
-                <h3>Standard</h3>
-                <p class="units">200 units / month</p>
-                <p class="price">₹1200</p>
-                <button class="select-btn">Choose Plan</button>
-            </div>
-
-            <div class="plan-card premium" onclick="selectPlan('Premium')">
-                <h3>Premium</h3>
-                <p class="units">400 units / month</p>
-                <p class="price">₹2200</p>
-                <button class="select-btn">Choose Plan</button>
-            </div>
+            <a href="login.html" class="nav-btn" style="background: rgba(255,255,255,0.2); border-color: white;">
+                🔐 Account
+            </a>
         </div>
     </div>
 
-    <!-- SUBSCRIPTION FORM -->
-    <div class="subscription-box">
-        <h2>Subscribe to a Plan</h2>
-
-        <div class="radio-group">
-            <label class="radio-option">
-                <input type="radio" name="plan" value="Basic">
-                <span>Basic — 100 units / ₹650</span>
-            </label>
-
-            <label class="radio-option">
-                <input type="radio" name="plan" value="Standard">
-                <span>Standard — 200 units / ₹1200</span>
-            </label>
-
-            <label class="radio-option">
-                <input type="radio" name="plan" value="Premium">
-                <span>Premium — 400 units / ₹2200</span>
-            </label>
+    <!-- QUICK STATS -->
+    <div class="main-container" style="max-width: 1200px; margin: 0 auto; padding: 0 20px;">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">📊</div>
+                <div class="stat-value" id="quickToday">7</div>
+                <div class="stat-label">Today's Usage (units)</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon">📅</div>
+                <div class="stat-value" id="quickMonthly">140</div>
+                <div class="stat-label">Monthly Usage (units)</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon">🎯</div>
+                <div class="stat-value" id="quickLimit">200</div>
+                <div class="stat-label">Plan Limit (units)</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon">💰</div>
+                <div class="stat-value" id="quickSaved">₹450</div>
+                <div class="stat-label">Money Saved</div>
+            </div>
         </div>
-
-        <button id="subscribeBtn" class="subscribe-action">Subscribe</button>
-
-        <pre id="subscribeResult"></pre>
+        
+        <!-- QUICK ACTIONS -->
+        <div class="quick-actions">
+            <button class="action-btn" onclick="addDailyUsage()">
+                ➕ Add Today's Usage
+            </button>
+            <a href="plans.html" class="action-btn secondary">
+                🔄 Change Plan
+            </a>
+            <a href="live.html" class="action-btn warning">
+                ⚡ View Live Usage
+            </a>
+        </div>
     </div>
 
-    <!-- MINI DASHBOARD -->
+    <!-- MAIN DASHBOARD SECTION -->
     <div id="dashboard-box" class="dashboard-box">
-        <h2>Your Dashboard</h2>
+        <h2>Your Energy Dashboard</h2>
 
-        <p class="dash-plan">Plan: <span id="planName">—</span></p>
+        <p class="dash-plan">Current Plan: <span id="planName">—</span></p>
 
         <div class="progress-container">
             <div class="progress-bar">
@@ -109,15 +300,16 @@
         </div>
 
         <p class="dash-units">
-            <span id="units">0</span> / <span id="limit">0</span> units
+            <span id="units">0</span> / <span id="limit">0</span> units used
+            (<span id="percentage">0%</span>)
         </p>
 
-        <!-- ✅ TASK 6: Reward Points -->
+        <!-- Reward Points -->
         <div id="rewardPoints" style="margin: 10px 0; padding: 10px; background: #fef7ff; border-radius: 8px; border-left: 4px solid #8b5cf6; font-weight: 600; text-align: center;">
             🎁 Reward points: 0
         </div>
 
-        <!-- ✅ TASK 5: Plan Recommendation -->
+        <!-- Plan Recommendation -->
         <div id="planRecommendation" style="margin: 10px 0; padding: 12px; background: #f0f9ff; border-radius: 8px; border-left: 4px solid #3b82f6; font-size: 14px;">
             <strong>📊 Prediction:</strong> Loading predictions...
         </div>
@@ -127,8 +319,12 @@
             <strong>⚡ AI Suggestion:</strong> Loading your usage analysis...
         </div>
 
-        <!-- ✅ TASK 3: Alerts List (will be created dynamically) -->
-        <!-- The alertsList div will be created by JavaScript when needed -->
+        <!-- Alerts List -->
+        <div id="alertsList" style="margin-top: 15px; padding: 12px; background: #fffbeb; border-radius: 8px; border-left: 4px solid #f59e0b; font-size: 14px;">
+            <div style="text-align: center; color: #92400e;">
+                🔔 Loading alerts...
+            </div>
+        </div>
 
         <!-- Add Usage Button -->
         <button id="addUsageBtn" class="subscribe-action" style="margin-top: 15px; background: #10b981; width: 100%;">
@@ -136,21 +332,174 @@
         </button>
     </div>
 
+    <!-- PAGE LINKS SECTION -->
+    <div class="page-links">
+        <h3>Explore More Features</h3>
+        <div class="page-cards">
+            <a href="plans.html" class="page-card">
+                <div class="page-icon">📋</div>
+                <h4>Plan Selection</h4>
+                <p>Choose from Basic, Standard, or Premium electricity plans. Compare features and pricing.</p>
+                <div style="margin-top: 15px; color: #2563eb; font-weight: 600;">
+                    View Plans →
+                </div>
+            </a>
+            
+            <a href="live.html" class="page-card">
+                <div class="page-icon">⚡</div>
+                <h4>Live Usage Monitor</h4>
+                <p>Real-time tracking of your electricity consumption with live graphs and appliance breakdown.</p>
+                <div style="margin-top: 15px; color: #2563eb; font-weight: 600;">
+                    View Live Data →
+                </div>
+            </a>
+            
+            <a href="rewards.html" class="page-card">
+                <div class="page-icon">🏆</div>
+                <h4>Rewards & Wallet</h4>
+                <p>Earn reward points for saving energy, track your savings, and claim rewards.</p>
+                <div style="margin-top: 15px; color: #2563eb; font-weight: 600;">
+                    View Rewards →
+                </div>
+            </a>
+        </div>
+    </div>
+
     <!-- USAGE CHART -->
     <div class="chart-box">
-        <h2>Usage Analytics</h2>
+        <h2>Weekly Usage Analytics</h2>
         <canvas id="usageChart"></canvas>
+        <div style="margin-top: 20px;">
+            <a href="live.html" class="select-btn" style="width: auto; padding: 10px 20px; display: inline-flex; align-items: center; gap: 8px;">
+                ⚡ View Detailed Live Chart
+            </a>
+        </div>
     </div>
 
     <!-- BACKEND STATUS -->
     <div class="status-section">
         <h2>Backend Status</h2>
-        <button class="check-btn" onclick="checkBackend()">Check Backend</button>
+        <button class="check-btn" onclick="checkBackend()">🔗 Check Backend Connection</button>
 
-        <pre id="backendResponse">Waiting...</pre>
+        <pre id="backendResponse">Waiting for backend connection...</pre>
     </div>
 
-    <script src="dashboard.js"></script>
-</body>
+    <!-- AUTO-REFRESH INDICATOR -->
+    <div id="refreshIndicator" style="position: fixed; bottom: 20px; right: 20px; background: #10b981; color: white; padding: 8px 16px; border-radius: 20px; font-size: 12px; display: flex; align-items: center; gap: 8px; z-index: 9999; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <div class="loading-spinner" style="width: 12px; height: 12px; border-width: 2px;"></div>
+        <span>Auto-refresh: ON (8s)</span>
+    </div>
 
+    <!-- Load dashboard.js -->
+    <script src="dashboard.js"></script>
+    
+    <!-- Dashboard-specific JavaScript -->
+    <script>
+        // Update user info on dashboard
+        function updateUserInfo() {
+            const userEmail = localStorage.getItem('user_email') || "demo@example.com";
+            const userId = localStorage.getItem('user_id') || "user1";
+            
+            const userInfoDiv = document.getElementById('userInfo');
+            const userEmailSpan = document.getElementById('userEmail');
+            
+            if (userInfoDiv && userEmailSpan) {
+                if (userId !== "user1") {
+                    userInfoDiv.style.display = 'block';
+                    userEmailSpan.textContent = userEmail;
+                }
+            }
+        }
+        
+        // Update quick stats
+        function updateQuickStats() {
+            // These will be updated by dashboard.js loadStatus()
+            const todayUsed = document.getElementById('units')?.textContent || "7";
+            const monthlyUsed = document.getElementById('units')?.textContent || "140";
+            const planLimit = document.getElementById('limit')?.textContent || "200";
+            
+            document.getElementById('quickToday').textContent = todayUsed;
+            document.getElementById('quickMonthly').textContent = monthlyUsed;
+            document.getElementById('quickLimit').textContent = planLimit;
+            
+            // Calculate percentage for display
+            const units = parseInt(todayUsed) || 0;
+            const limit = parseInt(planLimit) || 200;
+            const percentage = document.getElementById('percentage');
+            if (percentage && limit > 0) {
+                const percent = Math.min(100, Math.round((units / limit) * 100));
+                percentage.textContent = percent + '%';
+            }
+        }
+        
+        // Initialize dashboard enhancements
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log("📱 Dashboard UI initialized");
+            
+            // Update user info
+            updateUserInfo();
+            
+            // Update quick stats after a delay (allow loadStatus to run first)
+            setTimeout(updateQuickStats, 1000);
+            
+            // Set up navigation button active state
+            setupNavigation();
+            
+            // Periodically update quick stats
+            setInterval(updateQuickStats, 5000);
+        });
+        
+        function setupNavigation() {
+            const currentPage = window.location.pathname.split('/').pop();
+            const navButtons = document.querySelectorAll('.nav-btn');
+            
+            navButtons.forEach(btn => {
+                const href = btn.getAttribute('href');
+                if (href === currentPage || 
+                    (currentPage === 'index.html' && href === '#dashboard')) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+        
+        // Make sure we have handleLogout function
+        if (typeof handleLogout === 'undefined') {
+            window.handleLogout = function() {
+                if (confirm("Are you sure you want to logout?")) {
+                    localStorage.removeItem('user_id');
+                    localStorage.removeItem('user_email');
+                    localStorage.removeItem('user_name');
+                    localStorage.removeItem('selectedPlan');
+                    localStorage.removeItem('currentPlan');
+                    
+                    // Redirect to login page
+                    window.location.href = 'login.html';
+                }
+            };
+        }
+        
+        // Fix for navigation links
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                const href = this.getAttribute('href');
+                if (href && !href.startsWith('#')) {
+                    e.preventDefault();
+                    window.location.href = href;
+                }
+            });
+        });
+        
+        // Fix for page card links
+        document.querySelectorAll('.page-card').forEach(card => {
+            card.addEventListener('click', function(e) {
+                if (this.tagName === 'A' && this.getAttribute('href')) {
+                    e.preventDefault();
+                    window.location.href = this.getAttribute('href');
+                }
+            });
+        });
+    </script>
+</body>
 </html>
