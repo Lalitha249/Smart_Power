@@ -178,19 +178,26 @@ def usage_add_specific_date():
             return jsonify({"error": "units must be a number"}), 400
 
         # ---- MONGODB SAVE OPERATION ----
-        db.usage.update_one(
+        # Check if record already exists
+        existing = db.usage.find_one({"user_id": user_id, "date": date})
+
+        if existing:
+            new_units = float(existing["units"]) + units
+            db.usage.update_one(
             {"user_id": user_id, "date": date},
-            {
-                "$set": {
-                    "units": units,
-                    "updated_at": datetime.utcnow().isoformat()
-                },
-                "$setOnInsert": {
-                    "created_at": datetime.utcnow().isoformat()
-                }
-            },
-            upsert=True
+            {"$set": {
+            "units": new_units,
+            "updated_at": datetime.utcnow().isoformat()
+        }}
         )
+        else:
+            db.usage.insert_one({
+                "user_id": user_id,
+                  "date": date,
+                    "units": units,
+                    "created_at": datetime.utcnow().isoformat()
+      })
+
 
         return jsonify({"message": "Usage updated"}), 200
 
@@ -246,52 +253,77 @@ def plan_subscribe():
 
     except Exception as e:
         logging.error(f"[ERROR] /plan/subscribe: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Internal server error"}), 500
 
-# ---------------------------------------------
-# GET /usage/get/<user_id>
-# Returns: { "today": X, "monthly": Y, "limit": Z, "remaining": R }
-# ---------------------------------------------
+##---------------------------------------
+## Get usage
+##---------------------------------------
 @app.get("/usage/get/<user_id>")
 def usage_get(user_id):
     try:
-        # fetch usage records for this user
-        usage_records = list(db.usage.find({"user_id": user_id}, {"_id": 0}))
-        if not usage_records:
-            # if no usage, return zeros but still check subscription for limit
-            sub = db.subscriptions.find_one({"user_id": user_id}, {"_id": 0})
-            plan_limit = int(sub.get("plan_units", 0)) if sub else 0
-            return jsonify({"today": 0, "monthly": 0, "limit": plan_limit, "remaining": plan_limit}), 200
+        today = datetime.utcnow().date()
+        month_prefix = today.strftime("%Y-%m")  # example: "2025-12"
 
-        # sum monthly (assume all records in usage collection are daily entries for current month or full history)
-        total_month = 0.0
-        today_key = datetime.utcnow().date().isoformat()
-        today_value = 0.0
+        # FETCH only current month usage
+        usage_records = list(db.usage.find(
+            {"user_id": user_id, "date": {"$regex": f"^{month_prefix}"}},
+            {"_id": 0}
+        ))
 
+        # DEFAULT VALUES
+        today_used = 0.0
+        monthly_used = 0.0
+
+        # CALCULATE monthly + today usage
         for rec in usage_records:
             units = float(rec.get("units", 0))
-            total_month += units
-            if rec.get("date") == today_key:
-                today_value = units
+            monthly_used += units
 
+            if rec["date"] == today.isoformat():
+                today_used = units
+
+        # GET subscription details
         sub = db.subscriptions.find_one({"user_id": user_id}, {"_id": 0})
-        plan_limit = int(sub.get("plan_units", 0)) if sub else 0
-        remaining = plan_limit - total_month if plan_limit else 0
 
-        # clamp remaining to 0 minimum
-        if remaining < 0:
-            remaining = 0
+        if not sub:
+            # If no subscription → return limit = 0
+            return jsonify({
+                "user_id": user_id,
+                "today": today_used,
+                "monthly": monthly_used,
+                "limit": 0,
+                "remaining": 0,
+                "warning": "No subscription found for this user"
+            }), 200
+
+        plan_limit = int(sub.get("plan_units", 0))
+
+        # CALCULATE remaining units
+        remaining = max(plan_limit - monthly_used, 0)
 
         return jsonify({
-            "today": round(today_value, 2),
-            "monthly": round(total_month, 2),
+            "user_id": user_id,
+            "today": round(today_used, 2),
+            "monthly": round(monthly_used, 2),
             "limit": plan_limit,
             "remaining": round(remaining, 2)
         }), 200
 
     except Exception as e:
-        logging.error(f"[ERROR] /usage/get: {e}")
-        return jsonify({"error": str(e)}), 500
+        logging.error(f"[ERROR] /usage/get failed: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
+
+# -----------------------------------------------------
+# AUTO-CREATE MONGO INDEXES (runs once when server starts)
+# -----------------------------------------------------
+try:
+    db.users.create_index("user_id", unique=True)
+    db.usage.create_index([("user_id", 1), ("date", 1)])
+    db.subscriptions.create_index("user_id", unique=True)
+    db.rewards.create_index("user_id", unique=True)
+    print("Indexes created successfully")
+except Exception as e:
+    print("Index creation error:", e)
 
 # -------------------------------------------------------------
 # TASK 6 — ADMIN ANALYTICS API
@@ -400,7 +432,14 @@ def status(user_id):
             return jsonify({"error": "Subscription not found for user"}), 404
 
         # 2️⃣ Get usage records for user
-        usage_records = list(db.usage.find({"user_id": user_id}, {"_id": 0}))
+        today = datetime.utcnow().date()
+        month_prefix = today.strftime("%Y-%m")
+
+        usage_records = list(db.usage.find(
+        {"user_id": user_id, "date": {"$regex": f"^{month_prefix}"}},
+         {"_id": 0}
+        ))
+
 
         # Rebuild old JSON structure
         user_usage = {}
@@ -423,7 +462,7 @@ def status(user_id):
             predicted_units = 0.0
 
         # Today
-        today_key = datetime.now().date().isoformat()
+        today_key = datetime.utcnow().date().isoformat()
         today_rec = user_usage.get(today_key, {"units": 0})
         today_used = float(today_rec.get("units", 0))
 
@@ -660,71 +699,69 @@ def predict_advanced(user_id):
 # -------------------------------------------------------------
 # TASK 7 — NOTIFICATION RULES API
 # -------------------------------------------------------------
-@app.route("/alerts/<user_id>", methods=["GET"])
+@app.get("/alerts/<user_id>")
 def alerts(user_id):
     try:
         logging.info(f"🔥 /alerts/{user_id} called")
-        logging.info(f"[ALERTS] Request for user: {user_id}")
 
         # ---- FETCH SUBSCRIPTION ----
-        user_sub = db.subscriptions.find_one({"user_id": user_id}, {"_id": 0})
-        if not user_sub:
+        sub = db.subscriptions.find_one({"user_id": user_id}, {"_id": 0})
+        if not sub:
             return jsonify({"alerts": ["User not subscribed"]}), 200
 
-        # ---- FETCH USAGE ----
-        usage_records = list(db.usage.find({"user_id": user_id}, {"_id": 0}))
+        plan_limit = float(sub.get("plan_units", 0))
 
-        # Convert to old format {date: {"units": value}}
-        user_usage = {}
-        for rec in usage_records:
-            date = rec["date"]
-            units = rec["units"]
-            user_usage[date] = {"units": units}
+        # ---- FETCH ONLY CURRENT MONTH USAGE ----
+        today = datetime.utcnow().date()
+        month_prefix = today.strftime("%Y-%m")
 
-        if not user_usage:
+        usage_records = list(db.usage.find(
+            {"user_id": user_id, "date": {"$regex": f"^{month_prefix}"}},
+            {"_id": 0}
+        ))
+
+        if not usage_records:
             return jsonify({"alerts": ["No usage data available"]}), 200
+
+        # convert into date-sorted dict
+        usage = {rec["date"]: float(rec["units"]) for rec in usage_records}
+        dates = sorted(usage.keys())
+
+        # ---- monthly usage ----
+        monthly_used = sum(usage.values())
 
         alerts = []
 
-        # Extract needed values
-        plan_limit = user_sub.get("plan_units", 0)
-
-        # Total used this month
-        total_used = sum(float(rec["units"]) for rec in user_usage.values())
-
-        # ----- DETECT 80% LIMIT -----
+        # ---- 80% warning ----
         if plan_limit > 0:
-            if 0.8 * plan_limit <= total_used < plan_limit:
-                alerts.append("⚠️ You have used more than 80% of your monthly plan.")
-            if total_used >= plan_limit:
+            if monthly_used >= plan_limit:
                 alerts.append("🚨 You exceeded your monthly usage limit!")
+            elif monthly_used >= 0.8 * plan_limit:
+                alerts.append("⚠️ You have used more than 80% of your monthly plan.")
 
-        # ----- PREDICTION -----
-        daily_values = [float(rec["units"]) for rec in user_usage.values()]
+        # ---- Prediction alert ----
+        daily_values = list(usage.values())
+        avg_daily = sum(daily_values) / len(daily_values)
+        predicted_month = avg_daily * 30
 
-        if daily_values:
-            avg_daily = sum(daily_values) / len(daily_values)
-            predicted = avg_daily * 30
+        if predicted_month > plan_limit:
+            alerts.append("📈 Your predicted usage may exceed your subscription limit.")
 
-            if predicted > plan_limit:
-                alerts.append("📈 Your predicted usage may exceed your subscription limit.")
-
-        # ----- TODAY VS YESTERDAY -----
-        dates = sorted(user_usage.keys())
+        # ---- Spike detection ----
         if len(dates) >= 2:
-            today = dates[-1]
-            yesterday = dates[-2]
+            today_date = dates[-1]
+            yesterday_date = dates[-2]
 
-            today_units = float(user_usage[today]["units"])
-            y_units = float(user_usage[yesterday]["units"])
+            today_units = usage[today_date]
+            yesterday_units = usage[yesterday_date]
 
-            if today_units > y_units:
+            if today_units > yesterday_units:
                 alerts.append("🔥 Today's usage is higher than yesterday.")
 
-            if y_units > 0 and today_units > 2 * y_units:
+            if yesterday_units > 0 and today_units > 2 * yesterday_units:
                 alerts.append("⚡ Sudden usage spike detected.")
 
-        # ----- DEFAULT ALERT -----
+        # ---- Default ----
         if not alerts:
             alerts = ["Everything looks normal. 👍"]
 
@@ -732,7 +769,8 @@ def alerts(user_id):
 
     except Exception as e:
         logging.error(f"[ERROR] alerts: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Internal server error"}), 500
+
 # ---------------------------------------------
 # TASK 8 — INTEGRATION WITH ML MODULES  
 # ---------------------------------------------
@@ -773,7 +811,7 @@ def api_energy_suggestion():
 
     except Exception as e:
         logging.error(f"[ERROR] get-energy-suggestion: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Internal server error"}), 500
 
   # ---------------------------------------------
 # TASK 9 — PREDICT NEXT USAGE VIA ML MODEL      
@@ -805,7 +843,8 @@ def api_predict_usage():
 
     except Exception as e:
         logging.error(f"[ERROR] predict_next_usage: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Internal server error"}), 500
+
 # ---------------------------------------------
 # TASK 10 — REWARD POINTS SYSTEM
 @app.get("/rewards/<user_id>")
@@ -898,3 +937,4 @@ def get_all_users():
 # ---------------------------------------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+    
