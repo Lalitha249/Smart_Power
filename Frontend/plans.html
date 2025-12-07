@@ -159,6 +159,55 @@
 
     <script>
         // Plan selection logic
+        // NEW: Load user's current plan from backend
+         if (!localStorage.getItem("user_id")) {
+        window.location.href = "login.html";
+    }
+
+async function loadUserSubscription() {
+    const userId = localStorage.getItem("user_id");
+    if (!userId) return;
+
+    try {
+        const res = await fetch(`http://localhost:5000/subscription/${userId}`);
+        if (!res.ok) return;
+
+        const data = await res.json();
+        const currentPlan = data.subscription?.plan_name;
+
+        if (currentPlan) {
+            highlightCurrentPlan(currentPlan);
+        }
+    } catch (error) {
+        console.error("Failed to load subscription:", error);
+    }
+}
+
+// NEW: Highlight the correct plan visually
+function highlightCurrentPlan(planName) {
+    document.querySelectorAll('.plan-card').forEach(card => {
+        const title = card.querySelector("h3").textContent;
+        const btn = card.querySelector(".select-btn");
+
+        if (title === planName) {
+            card.classList.add('selected-plan');
+            btn.textContent = "Current Plan";
+            btn.style.background = "#10b981";
+        } else {
+            card.classList.remove('selected-plan');
+            btn.textContent = "Select Plan";
+            btn.style.background = "";
+        }
+    });
+
+    document.getElementById('selectedPlanName').textContent = planName;
+    document.getElementById('selectedPlanBtn').textContent = planName;
+
+    localStorage.setItem("selectedPlan", planName);
+}
+
+// Plan selection logic (already exists
+
         function selectPlan(planName) {
             // Remove selected class from all
             document.querySelectorAll('.plan-card').forEach(card => {
@@ -183,84 +232,86 @@
             localStorage.setItem('selectedPlan', planName);
         }
         
-        function subscribePlan() {
-            const plan = localStorage.getItem('selectedPlan') || 'Standard';
-            const userEmail = localStorage.getItem('user_email') || 'demo@example.com';
-            const userId = localStorage.getItem('user_id') || 'user1';
+    function subscribePlan() {
+        const plan = localStorage.getItem('selectedPlan') || 'Standard';
+        const userEmail = localStorage.getItem('user_email') || 'demo@example.com';
+        const userId = localStorage.getItem('user_id') || 'user1';
 
-            const resultEl = document.getElementById('subscribeResult');
+        const resultEl = document.getElementById('subscribeResult');
 
-            // Show loading
-            resultEl.innerHTML = `
-                <div style="background:#f0f9ff; color:#1e40af; padding:15px; border-radius:8px; display:flex; align-items:center; gap:10px;">
-                    <div class="loading-spinner"></div>
-                    Subscribing to ${plan} plan...
-                </div>
-            `;
+        // Show loading
+        resultEl.innerHTML = `
+            <div style="background:#f0f9ff; color:#1e40af; padding:15px; border-radius:8px; display:flex; align-items:center; gap:10px;">
+                <div class="loading-spinner"></div>
+                Subscribing to ${plan} plan...
+            </div>
+        `;
 
-            fetch('http://localhost:5000/plan/subscribe', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    user_id: userId,
-                    plan_name: plan,
-                    user_email: userEmail
-                })
+         fetch('http://127.0.0.1:5000/plan/subscribe', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                user_id: userId,
+                plan_name: plan,
+                user_email: userEmail
             })
-            .then(res => {
-                if (!res.ok) {
-                    throw new Error(`HTTP ${res.status}`);
-                }
-                return res.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    resultEl.innerHTML = `
-                        <div style="background:#f0fdf4; color:#065f46; padding:15px; border-radius:8px;">
-                            ✅ ${data.message || 'Successfully subscribed to ' + plan + ' plan!'}
-                            <br><small>Redirecting to dashboard...</small>
-                        </div>
-                    `;
+        })
+        .then(async res => {
+            // Extract response JSON
+            const data = await res.json();
 
-                    // Save plan to localStorage
-                    localStorage.setItem('currentPlan', plan);
-                    
-                    // Redirect to dashboard after 2 seconds
-                    setTimeout(() => {
-                        window.location.href = 'index.html';
-                    }, 2000);
-                } else {
-                    resultEl.innerHTML = `
-                        <div style="background:#fef2f2; color:#991b1b; padding:15px; border-radius:8px;">
-                            ❌ ${data.error || 'Subscription failed'}
-                        </div>
-                    `;
-                }
-            })
-            .catch(error => {
-                console.error('Subscription error:', error);
+            // SUCCESS CASE → backend returned 201
+            if (res.ok) {
                 resultEl.innerHTML = `
-                    <div style="background:#fef2f2; color:#991b1b; padding:15px; border-radius:8px;">
-                        ❌ Failed to connect to backend server.
-                        <br><small>Error: ${error.message}</small>
-                        <br><br>
-                        <button onclick="subscribePlan()" style="padding:8px 16px; background:#ef4444; color:white; border:none; border-radius:6px; cursor:pointer;">
-                            Try Again
-                        </button>
-                        <button onclick="window.location.href='index.html'" style="padding:8px 16px; background:#64748b; color:white; border:none; border-radius:6px; cursor:pointer; margin-left:10px;">
-                            Go to Dashboard
-                        </button>
+                    <div style="background:#f0fdf4; color:#065f46; padding:15px; border-radius:8px;">
+                        ✅ ${data.message || 'Successfully subscribed to ' + plan + ' plan!'}
+                        <br><small>Redirecting to dashboard...</small>
                     </div>
                 `;
-            });
-        }
+
+                // Save plan locally
+                localStorage.setItem('currentPlan', plan);
+
+                // Redirect to dashboard
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 2000);
+            } 
+            else {
+                // ERROR RETURNED FROM BACKEND
+                resultEl.innerHTML = `
+                    <div style="background:#fef2f2; color:#991b1b; padding:15px; border-radius:8px;">
+                        ❌ ${data.error || 'Subscription failed!'}
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Subscription error:', error);
+            resultEl.innerHTML = `
+                <div style="background:#fef2f2; color:#991b1b; padding:15px; border-radius:8px;">
+                    ❌ Failed to connect to backend server.
+                    <br><small>Error: ${error.message}</small>
+                    <br><br>
+                    <button onclick="subscribePlan()" style="padding:8px 16px; background:#ef4444; color:white; border:none; border-radius:6px; cursor:pointer;">
+                        Try Again
+                    </button>
+                    <button onclick="window.location.href='index.html'" style="padding:8px 16px; background:#64748b; color:white; border:none; border-radius:6px; cursor:pointer; margin-left:10px;">
+                        Go to Dashboard
+                    </button>
+                </div>
+            `;
+        });
+    }
+
+
         
         // Load saved selection
         document.addEventListener('DOMContentLoaded', function() {
-            const savedPlan = localStorage.getItem('selectedPlan') || 'Standard';
-            selectPlan(savedPlan);
+            loadUserSubscription();   // NEW: real backend plan highlight
+
             
             // Add loading spinner CSS if not present
             if (!document.querySelector('style[data-loading-spinner]')) {
