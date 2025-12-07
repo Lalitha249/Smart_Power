@@ -260,64 +260,66 @@
         }
         
         function claimReward(rewardType, cost) {
-            const points = parseInt(localStorage.getItem('reward_points') || 1250);
-            
-            if (points < cost) {
-                alert('You need more points to claim this reward!');
-                return;
-            }
-            
-            if (!confirm(`Are you sure you want to claim this reward for ${cost} points?`)) {
-                return;
-            }
-            
-            const userId = localStorage.getItem('user_id') || 'user1';
-            
-            // Show loading
-            const originalText = event.target.textContent;
-            event.target.innerHTML = '<span class="loading-spinner"></span> Claiming...';
-            event.target.disabled = true;
-            
-            fetch('http://localhost:5000/rewards/claim', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    user_id: userId,
-                    reward_type: rewardType,
-                    points_cost: cost
-                })
-            })
-            .then(res => {
-                if (!res.ok) throw new Error('Claim failed');
-                return res.json();
-            })
-            .then(data => {
-                // Update points
-                const newPoints = points - cost;
-                localStorage.setItem('reward_points', newPoints);
-                document.getElementById('totalPoints').textContent = 
-                    newPoints.toLocaleString();
-                
-                // Add to history
-                addToHistory(rewardType, cost);
-                
-                // Show success
-                alert('🎉 Reward claimed successfully!');
-                
-                // Update buttons
-                updateClaimButtons();
-            })
-            .catch(error => {
-                console.error('Claim error:', error);
-                alert('❌ Failed to claim reward. Please try again.');
-            })
-            .finally(() => {
-                event.target.textContent = originalText;
-                event.target.disabled = false;
-            });
+    const userId = localStorage.getItem('user_id');
+    if (!userId) {
+        alert("Please login first.");
+        window.location.href = "login.html";
+        return;
+    }
+
+    const points = parseInt(localStorage.getItem('reward_points') || 0);
+
+    if (points < cost) {
+        alert('You need more points to claim this reward!');
+        return;
+    }
+
+    if (!confirm(`Are you sure you want to claim this reward for ${cost} points?`)) {
+        return;
+    }
+
+    // Show loading animation
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.innerHTML = '<span class="loading-spinner"></span> Claiming...';
+    btn.disabled = true;
+
+    fetch('http://localhost:5000/rewards/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId })
+    })
+    .then(async res => {
+        const data = await res.json();
+
+        if (res.ok) {
+            // Backend success — points already reset to 0
+
+            alert(`🎉 Reward claimed! You used ${data.claimed_points} points.`);
+
+            // Update UI
+            document.getElementById('totalPoints').textContent = "0";
+            localStorage.setItem('reward_points', 0);
+
+            // Add history entry
+            addToHistory(rewardType, data.claimed_points);
+
+            updateClaimButtons();
+        } else {
+            alert(`❌ ${data.error || "Failed to claim reward."}`);
         }
+    })
+    .catch(err => {
+        console.error("Error claiming reward:", err);
+        alert("❌ Could not connect to backend.");
+    })
+    .finally(() => {
+        // Restore button
+        btn.textContent = originalText;
+        btn.disabled = false;
+    });
+}
+
         
         function addToHistory(rewardType, cost) {
             const historyDiv = document.getElementById('rewardsHistory');
