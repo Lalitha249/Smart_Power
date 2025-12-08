@@ -1,6 +1,10 @@
 from flask import jsonify
 from db.mongo import db
 from datetime import datetime
+from ML.predict_service import predict_next_usage
+from ML.ai_energy_coach import get_energy_suggestion
+from ML.reward_system import calculate_rewards
+
 
 def get_user_status(user_id):
     # -----------------------------
@@ -52,6 +56,15 @@ def get_user_status(user_id):
 
     progress_percent = round((month_used / plan_limit) * 100, 2) if plan_limit else 0.0
 
+    daily_values = [float(rec["units"]) for rec in user_usage.values()]
+
+    predicted_units = predict_next_usage(daily_values)
+
+    suggestion = get_energy_suggestion(user_usage, plan_limit)
+
+    reward_points = calculate_rewards(month_used, plan_limit)
+
+
     # -----------------------------
     # 7️⃣ Final JSON Response
     # -----------------------------
@@ -63,4 +76,7 @@ def get_user_status(user_id):
         "plan_limit": plan_limit,
         "plan": plan,
         "progress_percent": progress_percent
+        "suggestion": suggestion,
+        "reward_points": reward_points
+
     })
