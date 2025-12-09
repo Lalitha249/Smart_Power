@@ -11,9 +11,14 @@ try:
     from ML.ai_energy_coach import get_energy_suggestion
     from ML.predict_service import predict_next_usage
     from ML.reward_system import calculate_rewards
+    
+
     logging.info("ML modules loaded successfully.")
 except Exception as e:
     logging.warning(f"ML modules not available or failed to import: {e}. Using fallback stubs.")
+
+from controllers.alert_rewards_controller import get_alerts_and_rewards
+from controllers.dashboard_controller import get_user_status
 
 # ----------------------------------------------------------
 # LOGGING SETUP  (put this immediately after imports)
@@ -134,6 +139,13 @@ def subscribe():
                 "price": price,
                 "start_ts": datetime.now(timezone.utc).isoformat()
             })
+        # Auto-create user if not exists
+        existing_user = db.users.find_one({"user_id": user_id})
+        if not existing_user:
+            db.users.insert_one({
+            "user_id": user_id,
+            "created_at": datetime.utcnow().isoformat()
+           })
 
         return jsonify({
             "message": "Subscribed successfully",
@@ -197,14 +209,21 @@ def usage_add_specific_date():
                     "units": units,
                     "created_at": datetime.utcnow().isoformat()
       })
-
+          # Auto-create user if not exists
+        existing_user = db.users.find_one({"user_id": user_id})
+        if not existing_user:
+            db.users.insert_one({
+            "user_id": user_id,
+             "created_at": datetime.utcnow().isoformat()
+        })
+   
 
         return jsonify({"message": "Usage updated"}), 200
 
     except Exception as e:
         logging.error(f"[ERROR] /usage/add failed: {str(e)}")
         return jsonify({"error": "Internal server error", "details": str(e)}), 500
-
+ 
 # -------------------------------
 # HELPER: get plan by plan_id
 # -------------------------------
@@ -215,6 +234,20 @@ def get_plan_by_id(plan_id):
         return plan
     except Exception:
         return None
+# -------------------------
+# ALERTS + REWARDS ROUTE
+# -------------------------
+@app.get("/alerts-rewards/<user_id>")
+def alerts_rewards_route(user_id):
+    return get_alerts_and_rewards(user_id)
+
+
+# -------------------------
+# DASHBOARD ROUTE
+# -------------------------
+@app.get("/dashboard/<user_id>")
+def dashboard_route(user_id):
+    return get_user_status(user_id)
 
 # ---------------------------------------------
 # POST /plan/subscribe  (subscribe via plan_id)
@@ -225,16 +258,34 @@ def plan_subscribe():
     try:
         body = request.get_json() or {}
         user_id = body.get("user_id")
+
+        # frontend sends plan_name (NOT plan_id)
         plan_id = body.get("plan_id")
+        plan_name = body.get("plan_name")
 
-        if not user_id or plan_id is None:
-            return jsonify({"error": "user_id and plan_id are required"}), 400
+        # must have user_id
+        if not user_id:
+            return jsonify({"error": "user_id is required"}), 400
 
-        plan = get_plan_by_id(plan_id)
-        if not plan:
-            return jsonify({"error": "Plan not found"}), 404
+        # 🔥 Case 1: frontend sends plan_name (Standard, Basic, Premium)
+        if plan_name and plan_id is None:
+            plan_doc = db.plans.find_one({"plan_name": plan_name}, {"_id": 0})
+            if not plan_doc:
+                return jsonify({"error": "Plan not found"}), 404
+            plan = plan_doc
+            plan_id = plan_doc.get("plan_id")
 
-        # upsert subscription document: store plan_id and plan details
+        # 🔥 Case 2: backend call sends plan_id
+        elif plan_id is not None:
+            plan = get_plan_by_id(plan_id)
+            if not plan:
+                return jsonify({"error": "Plan not found"}), 404
+
+        else:
+            # neither plan_name nor plan_id provided
+            return jsonify({"error": "Either plan_name or plan_id is required"}), 400
+
+        # ---------- UPSERT SUBSCRIPTION ----------
         db.subscriptions.update_one(
             {"user_id": user_id},
             {"$set": {
@@ -249,11 +300,15 @@ def plan_subscribe():
             upsert=True
         )
 
-        return jsonify({"message": "Subscribed to plan", "plan": plan}), 201
+        return jsonify({
+            "message": "Subscribed to plan",
+            "plan": plan
+        }), 201
 
     except Exception as e:
         logging.error(f"[ERROR] /plan/subscribe: {e}")
         return jsonify({"error": "Internal server error"}), 500
+
 
 ##---------------------------------------
 ## Get usage
@@ -937,4 +992,3 @@ def get_all_users():
 # ---------------------------------------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
-    
