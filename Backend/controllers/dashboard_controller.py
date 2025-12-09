@@ -27,17 +27,14 @@ def get_user_status(user_id):
     # -----------------------------
     # 3️⃣ Calculate month_used
     # -----------------------------
-    month_used = 0.0
-    for rec in user_usage.values():
-        month_used += float(rec.get("units", 0.0))
+    month_used = sum(float(rec["units"]) for rec in user_usage.values())
 
     # -----------------------------
-    # 4️⃣ Predict next month usage
+    # 4️⃣ Predict next month usage (ML model)
     # -----------------------------
-    if user_usage:
-        values = [float(rec["units"]) for rec in user_usage.values()]
-        avg_daily = sum(values) / len(values)
-        predicted_units = round(avg_daily * 30, 2)
+    daily_values = [float(rec["units"]) for rec in user_usage.values()]
+    if daily_values:
+        predicted_units = predict_next_usage(daily_values)
     else:
         predicted_units = 0.0
 
@@ -45,28 +42,39 @@ def get_user_status(user_id):
     # 5️⃣ Today's usage
     # -----------------------------
     today_key = datetime.now().date().isoformat()
-    today_rec = user_usage.get(today_key, {"units": 0})
-    today_used = float(today_rec.get("units", 0))
+    today_used = float(user_usage.get(today_key, {"units": 0})["units"])
 
     # -----------------------------
     # 6️⃣ Plan details
     # -----------------------------
     plan_limit = int(user_sub.get("plan_units", 0))
     plan = user_sub.get("plan_name")
-
     progress_percent = round((month_used / plan_limit) * 100, 2) if plan_limit else 0.0
 
-    daily_values = [float(rec["units"]) for rec in user_usage.values()]
+    # -----------------------------
+    # 7️⃣ AI suggestion (convert dict to numeric index)
+    # -----------------------------
+    numeric_usage = {
+        idx: float(rec["units"])
+        for idx, (date, rec) in enumerate(user_usage.items())
+    }
 
-    predicted_units = predict_next_usage(daily_values)
+    suggestion = get_energy_suggestion(numeric_usage, plan_limit)
 
-    suggestion = get_energy_suggestion(user_usage, plan_limit)
-
+    # -----------------------------
+    # 8️⃣ Reward Points
+    # -----------------------------
     reward_points = calculate_rewards(month_used, plan_limit)
+    # Save reward points permanently in MongoDB
+    db.rewards.update_one(
+    {"user_id": user_id},
+    {"$set": {"reward_points": reward_points}},
+    upsert=True
+   )
 
 
     # -----------------------------
-    # 7️⃣ Final JSON Response
+    # 9️⃣ Final JSON
     # -----------------------------
     return jsonify({
         "user_id": user_id,
@@ -75,8 +83,8 @@ def get_user_status(user_id):
         "predicted_units": predicted_units,
         "plan_limit": plan_limit,
         "plan": plan,
-        "progress_percent": progress_percent
+        "progress_percent": progress_percent,
         "suggestion": suggestion,
         "reward_points": reward_points
-
     })
+
