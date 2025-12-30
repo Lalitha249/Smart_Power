@@ -597,6 +597,10 @@ textarea:focus {
     margin-right: 8px;
     animation: livePulse 1.5s infinite;
 }
+.hero::before {
+    pointer-events: none;
+}
+
 
 /* ============================= */
 /*      MODAL & TOASTS           */
