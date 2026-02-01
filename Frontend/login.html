@@ -1,368 +1,73 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartPower - Login</title>
+    <title>SmartPower - Sign In</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="dashboard.js"></script>
     <style>
-        /* COMPLETE LOGIN PAGE STYLES */
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #f2f5f9 0%, #e6ecf2 100%);
-            color: #222;
-            line-height: 1.6;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        /* Main Container */
+        /* Additional styles specific to signin page */
         .auth-container {
             width: 100%;
             max-width: 420px;
+            margin: 0 auto;
+            padding: 20px;
         }
 
-        /* Card Design */
-        .auth-card {
-            background: white;
-            padding: 40px 35px;
-            border-radius: 20px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12);
+        .auth-divider {
+            margin: 25px 0;
             text-align: center;
-            animation: fadeInUp 0.6s ease;
             position: relative;
-            overflow: hidden;
         }
 
-        .auth-card::before {
+        .auth-divider::before {
             content: '';
             position: absolute;
-            top: 0;
+            top: 50%;
             left: 0;
             right: 0;
-            height: 6px;
-            background: linear-gradient(90deg, #2563eb, #0ea5e9);
+            height: 1px;
+            background: #e2e8f0;
         }
 
-        /* Logo & Title */
-        .auth-logo {
-            font-size: 60px;
-            margin-bottom: 15px;
-            color: #2563eb;
-            animation: bounce 1s ease;
-        }
-
-        .auth-title {
-            font-size: 32px;
-            margin-bottom: 8px;
-            color: #1e293b;
-            font-weight: 700;
-        }
-
-        .auth-subtitle {
+        .auth-divider span {
+            background: white;
+            padding: 0 15px;
             color: #64748b;
-            margin-bottom: 35px;
-            font-size: 16px;
-            font-weight: 400;
+            font-size: 14px;
+            position: relative;
         }
 
-        /* Form Styles */
-        .form-group {
-            margin-bottom: 22px;
-            text-align: left;
-        }
-
-        .form-label {
-            display: block;
-            margin-bottom: 8px;
-            color: #475569;
-            font-weight: 500;
-            font-size: 15px;
+        .checkbox-group {
             display: flex;
             align-items: center;
             gap: 8px;
+            margin-bottom: 20px;
         }
 
-        .form-input {
-            width: 100%;
-            padding: 16px 18px;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            font-size: 16px;
-            transition: all 0.3s;
-            font-family: inherit;
-            background: #f8fafc;
-            color: #1e293b;
-        }
-
-        .form-input:focus {
-            outline: none;
-            border-color: #2563eb;
-            background: white;
-            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
-            transform: translateY(-1px);
-        }
-
-        .form-input::placeholder {
-            color: #94a3b8;
-        }
-
-        /* Login Button */
-        .login-btn {
-            width: 100%;
-            padding: 17px;
-            background: linear-gradient(135deg, #2563eb, #0ea5e9);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 17px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            font-family: inherit;
-            margin-top: 10px;
-            letter-spacing: 0.5px;
-        }
-
-        .login-btn:hover:not(:disabled) {
-            transform: translateY(-3px);
-            box-shadow: 0 12px 25px rgba(37, 99, 235, 0.3);
-            background: linear-gradient(135deg, #1d4ed8, #2563eb);
-        }
-
-        .login-btn:active:not(:disabled) {
-            transform: translateY(-1px);
-        }
-
-        .login-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none !important;
-            box-shadow: none !important;
-        }
-
-        /* Demo Info Box */
-        .demo-info {
-            margin-top: 30px;
-            padding: 20px;
-            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
-            border-radius: 12px;
-            border-left: 5px solid #2563eb;
-            text-align: left;
-            font-size: 14px;
-            line-height: 1.6;
-        }
-
-        .demo-info strong {
-            color: #1e40af;
-            display: block;
-            margin-bottom: 10px;
-            font-size: 15px;
-        }
-
-        .demo-info ul {
-            margin: 0;
-            padding-left: 20px;
-            color: #475569;
-        }
-
-        .demo-info li {
-            margin-bottom: 8px;
-            position: relative;
-        }
-
-        .demo-info li::marker {
-            color: #2563eb;
-        }
-
-        /* Debug Link */
-        .debug-link {
-            margin-top: 20px;
-            text-align: center;
-        }
-
-        .debug-link a {
-            color: #64748b;
-            font-size: 13px;
-            text-decoration: none;
-            transition: color 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 16px;
-            border-radius: 8px;
-            background: #f8fafc;
-        }
-
-        .debug-link a:hover {
-            color: #2563eb;
-            background: #f1f5f9;
-            text-decoration: none;
-        }
-
-        /* Message Display */
-        #loginMessage {
-            margin: 20px 0;
-            padding: 15px;
-            border-radius: 10px;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            animation: fadeIn 0.3s ease;
-            text-align: left;
-        }
-
-        /* Success Message */
-        .message-success {
-            background: #f0fdf4;
-            color: #166534;
-            border-left: 4px solid #10b981;
-        }
-
-        /* Error Message */
-        .message-error {
-            background: #fef2f2;
-            color: #991b1b;
-            border-left: 4px solid #ef4444;
-        }
-
-        /* Warning Message */
-        .message-warning {
-            background: #fffbeb;
-            color: #92400e;
-            border-left: 4px solid #f59e0b;
-        }
-
-        /* Info Message */
-        .message-info {
-            background: #f0f9ff;
-            color: #1e40af;
-            border-left: 4px solid #3b82f6;
-        }
-
-        /* Loading Spinner */
-        .loading-spinner {
-            display: inline-block;
+        .checkbox-group input[type="checkbox"] {
             width: 18px;
             height: 18px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 1s ease-in-out infinite;
+            accent-color: #2563eb;
         }
 
-        /* Animations */
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .checkbox-group label {
+            font-size: 14px;
+            color: #475569;
+            cursor: pointer;
         }
 
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-            to {
-                opacity: 1;
-            }
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        @keyframes bounce {
-            0%, 100% {
-                transform: translateY(0);
-            }
-            50% {
-                transform: translateY(-10px);
-            }
-        }
-
-        @keyframes pulse {
-            0% {
-                box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4);
-            }
-            70% {
-                box-shadow: 0 0 0 10px rgba(37, 99, 235, 0);
-            }
-            100% {
-                box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
-            }
-        }
-
-        /* Responsive Design */
+        /* Responsive adjustments */
         @media (max-width: 480px) {
-            body {
+            .auth-container {
                 padding: 15px;
             }
             
-            .auth-card {
-                padding: 30px 25px;
-                border-radius: 16px;
-            }
-            
-            .auth-logo {
-                font-size: 50px;
-            }
-            
-            .auth-title {
-                font-size: 28px;
-            }
-            
-            .auth-subtitle {
-                font-size: 15px;
-            }
-            
-            .form-input {
-                padding: 14px 16px;
-            }
-            
-            .login-btn {
-                padding: 15px;
-                font-size: 16px;
-            }
-            
-            .demo-info {
-                padding: 15px;
-                font-size: 13px;
-            }
-        }
-
-        /* Extra Small Screens */
-        @media (max-width: 360px) {
-            .auth-card {
-                padding: 25px 20px;
-            }
-            
-            .auth-logo {
-                font-size: 45px;
-            }
-            
-            .auth-title {
-                font-size: 26px;
+            .auth-links {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
             }
         }
     </style>
@@ -373,25 +78,13 @@
             <!-- Logo & Title -->
             <div class="auth-logo">⚡</div>
             <h1 class="auth-title">SmartPower</h1>
-            <p class="auth-subtitle">Login to your energy dashboard</p>
-            
-            <!-- Name Input -->
-            <div class="form-group">
-                <label class="form-label" for="name">
-                    <span>👤</span>
-                    <span>Your Name (Optional)</span>
-                </label>
-                <input type="text" id="name" class="form-input" 
-                       placeholder="John Doe" 
-                       value="Demo User"
-                       aria-label="Your name">
-            </div>
+            <p class="auth-subtitle">Sign in to your energy dashboard</p>
             
             <!-- Email Input -->
             <div class="form-group">
                 <label class="form-label" for="email">
                     <span>📧</span>
-                    <span>Email Address *</span>
+                    <span>Email Address</span>
                 </label>
                 <input type="email" id="email" class="form-input" 
                        placeholder="you@example.com" 
@@ -401,46 +94,74 @@
                        aria-required="true">
             </div>
             
-            <!-- Login Button -->
-            <button id="loginBtn" class="login-btn" onclick="handleLogin()">
+            <!-- Password Input -->
+            <div class="form-group">
+                <label class="form-label" for="password">
+                    <span>🔒</span>
+                    <span>Password</span>
+                </label>
+                <input type="password" id="password" class="form-input" 
+                       placeholder="Enter your password" 
+                       value="demo123" 
+                       required
+                       aria-label="Password"
+                       aria-required="true">
+            </div>
+            
+            <!-- Remember Me & Forgot Password -->
+            <div class="auth-links">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="rememberMe">
+                    <label for="rememberMe">Remember me</label>
+                </div>
+                <a href="forgot-password.html" class="auth-link">Forgot password?</a>
+            </div>
+            
+            <!-- Sign In Button -->
+            <button id="signInBtn" class="auth-btn" onclick="handleLogin()">
                 <span>🔐</span>
-                <span>Login to Dashboard</span>
+                <span>Sign In</span>
             </button>
             
             <!-- Message Display Area -->
-            <div id="loginMessage"></div>
+            <div id="authMessage"></div>
+            
+            <!-- Alternative Sign In -->
+            <div class="auth-divider">
+                <span>Or continue with</span>
+            </div>
+            
+            <!-- Demo Login Button -->
+            <button class="auth-btn secondary-btn" onclick="handleDemoLogin()">
+                <span>🚀</span>
+                <span>Quick Demo Login</span>
+            </button>
+            
+            <!-- Sign Up Link -->
+            <div style="margin-top: 25px; text-align: center;">
+                <span style="color: #64748b;">Don't have an account? </span>
+                <a href="signup.html" class="auth-link signup">Sign up here</a>
+            </div>
             
             <!-- Demo Information -->
             <div class="demo-info">
-                <strong>🚀 How it works:</strong>
+                <strong>🚀 Demo Credentials:</strong>
                 <ul>
-                    <li>Enter any email address (real or test)</li>
-                    <li>We'll create a unique account for you</li>
-                    <li>All your energy usage data will be saved</li>
-                    <li>Use the same email to return to your dashboard</li>
-                    <li>No password needed for demo purposes</li>
+                    <li>Email: demo@example.com</li>
+                    <li>Password: demo123</li>
+                    <li>No backend needed for demo</li>
+                    <li>All data saved locally</li>
+                    <li>Click "Quick Demo Login" for instant access</li>
                 </ul>
-            </div>
-            
-            <!-- Debug Link -->
-            <div class="debug-link">
-                <a href="#" onclick="testLogin(); return false;" 
-                   aria-label="Test registration API">
-                    <span>🔧</span>
-                    <span>Test Registration API</span>
-                </a>
             </div>
         </div>
     </div>
 
-    <!-- Load dashboard.js (contains all functions) -->
-    <script src="dashboard.js"></script>
-    
     <!-- Page Initialization Script -->
     <script>
         // Page initialization
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('✅ Login page loaded successfully');
+            console.log('✅ Sign in page loaded successfully');
             
             // Auto-focus email field
             const emailInput = document.getElementById('email');
@@ -458,23 +179,19 @@
         
         // Enter key navigation
         function setupEnterKeyNavigation() {
-            const nameInput = document.getElementById('name');
             const emailInput = document.getElementById('email');
+            const passwordInput = document.getElementById('password');
             
             if (emailInput) {
                 emailInput.addEventListener('keypress', function(e) {
                     if (e.key === 'Enter') {
-                        if (nameInput && nameInput.value.trim()) {
-                            nameInput.focus();
-                        } else {
-                            handleLogin();
-                        }
+                        passwordInput.focus();
                     }
                 });
             }
             
-            if (nameInput) {
-                nameInput.addEventListener('keypress', function(e) {
+            if (passwordInput) {
+                passwordInput.addEventListener('keypress', function(e) {
                     if (e.key === 'Enter') {
                         handleLogin();
                     }
@@ -496,14 +213,20 @@
                     emailInput.value = userEmail;
                 }
                 
+                // Check remember me
+                const rememberMe = localStorage.getItem('remember_me');
+                if (rememberMe === 'true') {
+                    document.getElementById('rememberMe').checked = true;
+                }
+                
                 // Show welcome back message
-                showLoginMessage(`Welcome back! You're logged in as <strong>${userId}</strong>`, 'info');
+                showAuthMessage(`Welcome back! You're logged in as <strong>${userId}</strong>`, 'info');
             }
         }
         
-        // Show message function for login page
-        function showLoginMessage(message, type = 'info') {
-            const messageDiv = document.getElementById('loginMessage');
+        // Show message function
+        function showAuthMessage(message, type = 'info') {
+            const messageDiv = document.getElementById('authMessage');
             if (!messageDiv) return;
             
             // Clear existing message
@@ -534,56 +257,53 @@
             }
         }
         
-        // Override global showLoginMessage for this page
-        if (typeof window.showLoginMessage === 'undefined') {
-            window.showLoginMessage = showLoginMessage;
-        }
-        
-        // Login function with localStorage and redirect
+        // Sign In function - uses the handleLogin from dashboard.js
         window.handleLogin = async function() {
             const email = document.getElementById('email')?.value.trim();
-            const name = document.getElementById('name')?.value.trim() || "Guest User";
+            const password = document.getElementById('password')?.value;
+            const rememberMe = document.getElementById('rememberMe')?.checked;
             
-            console.log("🔐 Login attempt with:", { email, name });
+            console.log("🔐 Sign in attempt with:", { email, password, rememberMe });
 
-            // Validate email
-            if (!email) {
-                showLoginMessage("❌ Email is required", "error");
+            // Validate inputs
+            if (!email || !password) {
+                showAuthMessage("❌ Email and password are required", "error");
                 return;
             }
             
             if (!email.includes('@')) {
-                showLoginMessage("❌ Please enter a valid email address", "error");
+                showAuthMessage("❌ Please enter a valid email address", "error");
                 return;
             }
 
-            // Create unique user_id from email
+            // Show loading state
+            const signInBtn = document.getElementById('signInBtn');
+            if (signInBtn) {
+                signInBtn.innerHTML = '<span class="loading-spinner"></span> Signing in...';
+                signInBtn.disabled = true;
+            }
+
+            // Store remember me preference
+            localStorage.setItem("remember_me", rememberMe ? 'true' : 'false');
+            
+            // Call the handleLogin function from dashboard.js
+            // This will create user_id, store in localStorage, and redirect
             const USER_ID = email.split('@')[0]
                 .replace(/[^a-zA-Z0-9]/g, '')
                 .toLowerCase();
             
-            console.log("🆔 Generated user_id:", USER_ID);
-
-            // Show loading state
-            const loginBtn = document.getElementById('loginBtn');
-            if (loginBtn) {
-                loginBtn.innerHTML = '<span class="loading-spinner"></span> Logging in...';
-                loginBtn.disabled = true;
-            }
-
-            // Store user info in localStorage
             localStorage.setItem("user_id", USER_ID);
             localStorage.setItem("user_email", email);
-            localStorage.setItem("user_name", name);
+            localStorage.setItem("user_name", email.split('@')[0] + " User");
             
             console.log("💾 User stored in localStorage:", {
                 user_id: USER_ID,
                 email: email,
-                name: name
+                remember_me: rememberMe
             });
 
             // Show success message
-            showLoginMessage("✅ Login successful! Redirecting to dashboard...", "success");
+            showAuthMessage("✅ Sign in successful! Redirecting to dashboard...", "success");
             
             // Redirect to dashboard after 1.5 seconds
             setTimeout(() => {
@@ -592,6 +312,28 @@
             }, 1500);
         };
         
+        // Demo login function
+        window.handleDemoLogin = async function() {
+            console.log('🚀 Quick demo login...');
+            
+            // Use demo credentials
+            document.getElementById('email').value = 'demo@example.com';
+            document.getElementById('password').value = 'demo123';
+            document.getElementById('rememberMe').checked = true;
+            
+            showAuthMessage('🚀 Using demo credentials...', 'info');
+            
+            // Trigger sign in after a short delay
+            setTimeout(() => {
+                handleLogin();
+            }, 500);
+        };
+        
+        // Override for backward compatibility
+        if (typeof window.showLoginMessage === 'undefined') {
+            window.showLoginMessage = showAuthMessage;
+        }
+        
         // Test function for debugging
         window.testLogin = async function() {
             console.log('🧪 Testing login functionality...');
@@ -599,7 +341,7 @@
             const testEmail = `test${Date.now()}@example.com`;
             const testName = "Test User";
             
-            showLoginMessage('🧪 Testing login...', 'info');
+            showAuthMessage('🧪 Testing login...', 'info');
             
             // Simulate login
             localStorage.setItem("user_id", testEmail.split('@')[0]);
@@ -607,10 +349,9 @@
             localStorage.setItem("user_name", testName);
             
             setTimeout(() => {
-                showLoginMessage('✅ Test successful! Click Login to continue.', 'success');
+                showAuthMessage('✅ Test successful! Click Login to continue.', 'success');
             }, 1000);
         };
     </script>
 </body>
 </html>
-
