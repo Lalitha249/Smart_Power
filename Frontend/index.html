@@ -225,7 +225,7 @@
             <button class="logout-btn" onclick="handleLogout()">Logout</button>
         </div>
         
-        <!-- ✅ MAIN NAVIGATION -->
+        <!-- ✅ MAIN NAVIGATION - UPDATED ACCOUNT LINK -->
         <div class="main-nav">
             <a href="index.html" class="nav-btn active">
                 📊 Dashboard
@@ -239,7 +239,7 @@
             <a href="rewards.html" class="nav-btn">
                 🏆 Rewards
             </a>
-            <a href="login.html" class="nav-btn" style="background: rgba(255,255,255,0.2); border-color: white;">
+            <a href="signin.html" class="nav-btn" style="background: rgba(255,255,255,0.2); border-color: white;">
                 🔐 Account
             </a>
         </div>
@@ -464,7 +464,8 @@
             });
         }
         
-        // Make sure we have handleLogout function
+        // Make sure we have handleLogout function (already in dashboard.js)
+        // Override just in case for backward compatibility
         if (typeof handleLogout === 'undefined') {
             window.handleLogout = function() {
                 if (confirm("Are you sure you want to logout?")) {
@@ -474,8 +475,8 @@
                     localStorage.removeItem('selectedPlan');
                     localStorage.removeItem('currentPlan');
                     
-                    // Redirect to login page
-                    window.location.href = 'login.html';
+                    // Redirect to signin page
+                    window.location.href = 'signin.html';
                 }
             };
         }
