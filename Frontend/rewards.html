@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SmartPower - Rewards</title>
     <link rel="stylesheet" href="style.css">
+    <script src="dashboard.js"></script>
     <style>
         /* Rewards specific styles */
         .rewards-hero {
@@ -125,7 +126,7 @@
             <a href="index.html">Dashboard</a>
             <a href="plans.html">Plans</a>
             <a href="live.html">Live Usage</a>
-            <a href="login.html">Account</a>
+            <a href="signin.html">Account</a>
         </div>
     </div>
 
@@ -260,66 +261,65 @@
         }
         
         function claimReward(rewardType, cost) {
-    const userId = localStorage.getItem('user_id');
-    if (!userId) {
-        alert("Please login first.");
-        window.location.href = "login.html";
-        return;
-    }
+            const userId = localStorage.getItem('user_id');
+            if (!userId) {
+                alert("Please login first.");
+                window.location.href = "signin.html";
+                return;
+            }
 
-    const points = parseInt(localStorage.getItem('reward_points') || 0);
+            const points = parseInt(localStorage.getItem('reward_points') || 0);
 
-    if (points < cost) {
-        alert('You need more points to claim this reward!');
-        return;
-    }
+            if (points < cost) {
+                alert('You need more points to claim this reward!');
+                return;
+            }
 
-    if (!confirm(`Are you sure you want to claim this reward for ${cost} points?`)) {
-        return;
-    }
+            if (!confirm(`Are you sure you want to claim this reward for ${cost} points?`)) {
+                return;
+            }
 
-    // Show loading animation
-    const btn = event.target;
-    const originalText = btn.textContent;
-    btn.innerHTML = '<span class="loading-spinner"></span> Claiming...';
-    btn.disabled = true;
+            // Show loading animation
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.innerHTML = '<span class="loading-spinner"></span> Claiming...';
+            btn.disabled = true;
 
-    fetch('http://localhost:5000/rewards/claim', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId })
-    })
-    .then(async res => {
-        const data = await res.json();
+            fetch('http://localhost:5000/rewards/claim', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId })
+            })
+            .then(async res => {
+                const data = await res.json();
 
-        if (res.ok) {
-            // Backend success — points already reset to 0
+                if (res.ok) {
+                    // Backend success — points already reset to 0
 
-            alert(`🎉 Reward claimed! You used ${data.claimed_points} points.`);
+                    alert(`🎉 Reward claimed! You used ${data.claimed_points} points.`);
 
-            // Update UI
-            document.getElementById('totalPoints').textContent = "0";
-            localStorage.setItem('reward_points', 0);
+                    // Update UI
+                    document.getElementById('totalPoints').textContent = "0";
+                    localStorage.setItem('reward_points', 0);
 
-            // Add history entry
-            addToHistory(rewardType, data.claimed_points);
+                    // Add history entry
+                    addToHistory(rewardType, data.claimed_points);
 
-            updateClaimButtons();
-        } else {
-            alert(`❌ ${data.error || "Failed to claim reward."}`);
+                    updateClaimButtons();
+                } else {
+                    alert(`❌ ${data.error || "Failed to claim reward."}`);
+                }
+            })
+            .catch(err => {
+                console.error("Error claiming reward:", err);
+                alert("❌ Could not connect to backend.");
+            })
+            .finally(() => {
+                // Restore button
+                btn.textContent = originalText;
+                btn.disabled = false;
+            });
         }
-    })
-    .catch(err => {
-        console.error("Error claiming reward:", err);
-        alert("❌ Could not connect to backend.");
-    })
-    .finally(() => {
-        // Restore button
-        btn.textContent = originalText;
-        btn.disabled = false;
-    });
-}
-
         
         function addToHistory(rewardType, cost) {
             const historyDiv = document.getElementById('rewardsHistory');
