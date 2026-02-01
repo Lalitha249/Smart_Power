@@ -1194,7 +1194,10 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // Check if we're on login page or dashboard
     const isLoginPage = window.location.pathname.includes('login.html') || 
-                        window.location.pathname.includes('login');
+                        window.location.pathname.includes('login') ||
+                        window.location.pathname.includes('signin.html') ||
+                        window.location.pathname.includes('signup.html') ||
+                        window.location.pathname.includes('forgot-password.html');
     
     if (isLoginPage) {
         // Initialize login page
@@ -1314,7 +1317,7 @@ window.addDailyUsage = addDailyUsage;
 window.showSaveTipsModal = showSaveTipsModal;
 window.claimRewards = claimRewards;
 
-// Logout function
+// Logout function - UPDATED FOR NEW AUTH
 window.handleLogout = function() {
     if (confirm("Are you sure you want to logout?")) {
         localStorage.removeItem('user_id');
@@ -1322,8 +1325,10 @@ window.handleLogout = function() {
         localStorage.removeItem('user_name');
         localStorage.removeItem('selectedPlan');
         localStorage.removeItem('currentPlan');
+        localStorage.removeItem('remember_me');
         
-        window.location.href = 'login.html';
+        // Redirect to signin instead of login
+        window.location.href = 'signin.html';
     }
 };
 
@@ -1340,4 +1345,178 @@ window.testLogin = async function() {
     console.log("🧪 Test result:", result);
     
     alert(`Test registration: ${result.success ? '✅ SUCCESS' : '❌ FAILED'}\n${result.message}`);
+};
+
+/* ============================================================
+   NEW AUTHENTICATION FUNCTIONS - ADDED FOR SIGNIN/SIGNUP
+   ============================================================ */
+
+// Backward compatible login function
+window.handleLogin = async function() {
+    const email = document.getElementById('email')?.value.trim() || 
+                  document.getElementById('userEmail')?.value.trim();
+    const password = document.getElementById('password')?.value;
+    const name = document.getElementById('name')?.value.trim() || 
+                 document.getElementById('fullName')?.value.trim() || 
+                 "Guest User";
+    
+    console.log("🔐 Login attempt with:", { email, name });
+
+    if (!email) {
+        showMessage("❌ Email is required", "error");
+        return;
+    }
+    
+    if (!email.includes('@')) {
+        showMessage("❌ Please enter a valid email address", "error");
+        return;
+    }
+
+    // Create unique user_id from email
+    const USER_ID = email.split('@')[0]
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .toLowerCase();
+    
+    console.log("🆔 Generated user_id:", USER_ID);
+
+    // Store user info in localStorage
+    localStorage.setItem("user_id", USER_ID);
+    localStorage.setItem("user_email", email);
+    localStorage.setItem("user_name", name);
+    
+    console.log("💾 User stored in localStorage:", {
+        user_id: USER_ID,
+        email: email,
+        name: name
+    });
+
+    showToast("✅ Login successful! Redirecting...", "success");
+    
+    setTimeout(() => {
+        window.location.href = "index.html";
+    }, 1500);
+};
+
+// Sign up function
+window.handleSignUp = async function() {
+    const fullName = document.getElementById('fullName')?.value.trim();
+    const email = document.getElementById('email')?.value.trim();
+    const password = document.getElementById('password')?.value;
+    const confirmPassword = document.getElementById('confirmPassword')?.value;
+    const acceptTerms = document.getElementById('acceptTerms')?.checked;
+    
+    console.log("📝 Sign up attempt with:", { fullName, email });
+
+    if (!fullName || !email || !password || !confirmPassword) {
+        showMessage("❌ All fields are required", "error");
+        return;
+    }
+    
+    if (!email.includes('@')) {
+        showMessage("❌ Please enter a valid email address", "error");
+        return;
+    }
+    
+    if (!acceptTerms) {
+        showMessage("❌ Please accept the terms and conditions", "error");
+        return;
+    }
+    
+    if (password !== confirmPassword) {
+        showMessage("❌ Passwords don't match", "error");
+        return;
+    }
+
+    const USER_ID = email.split('@')[0]
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .toLowerCase();
+    
+    localStorage.setItem("user_id", USER_ID);
+    localStorage.setItem("user_email", email);
+    localStorage.setItem("user_name", fullName);
+    localStorage.setItem("user_signed_up", "true");
+    
+    showToast("✅ Account created! Signing you in...", "success");
+    
+    setTimeout(() => {
+        window.location.href = "index.html";
+    }, 1500);
+};
+
+// Forgot password function
+window.handleResetPassword = async function() {
+    const email = document.getElementById('email')?.value.trim();
+    
+    console.log("🔐 Reset password attempt for:", email);
+
+    if (!email) {
+        showMessage("❌ Email is required", "error");
+        return;
+    }
+    
+    if (!email.includes('@')) {
+        showMessage("❌ Please enter a valid email address", "error");
+        return;
+    }
+
+    showToast("✅ Reset link sent! Check your email. (Simulated)", "success");
+    
+    setTimeout(() => {
+        window.location.href = "signin.html";
+    }, 3000);
+};
+
+// Demo login function
+window.handleDemoLogin = function() {
+    if (document.getElementById('email')) {
+        document.getElementById('email').value = 'demo@example.com';
+    }
+    if (document.getElementById('password')) {
+        document.getElementById('password').value = 'demo123';
+    }
+    
+    showToast("🚀 Using demo credentials...", "info");
+    
+    setTimeout(() => {
+        handleLogin();
+    }, 500);
+};
+
+// Password validation function
+window.validatePassword = function() {
+    const password = document.getElementById('password')?.value || '';
+    const confirmPassword = document.getElementById('confirmPassword')?.value || '';
+    
+    const requirements = {
+        reqLength: password.length >= 8,
+        reqUppercase: /[A-Z]/.test(password),
+        reqLowercase: /[a-z]/.test(password),
+        reqNumber: /\d/.test(password),
+        reqSpecial: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password),
+        reqMatch: password === confirmPassword && password.length > 0
+    };
+    
+    Object.keys(requirements).forEach(reqId => {
+        const element = document.getElementById(reqId);
+        if (element) {
+            if (requirements[reqId]) {
+                element.className = 'requirement-met';
+            } else {
+                element.className = 'requirement-not-met';
+            }
+        }
+    });
+    
+    return Object.values(requirements).every(req => req);
+};
+
+// Terms and Privacy functions
+window.showTerms = function() {
+    alert('📜 Terms of Service\n\nThis is a demo system for educational purposes. All data is stored locally in your browser. No real personal information is required or stored.');
+    return false;
+};
+
+window.showPrivacy = function() {
+    alert('🔒 Privacy Policy\n\nYour data is stored locally in your browser. No information is sent to any server. This is a demo system for educational purposes only.');
+    return false;
 };
