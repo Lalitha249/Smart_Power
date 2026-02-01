@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartPower - Sign Up</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card signup">
+            <!-- Logo & Title -->
+            <div class="auth-logo signup">⚡</div>
+            <h1 class="auth-title">SmartPower</h1>
+            <p class="auth-subtitle">Create your energy management account</p>
+            
+            <!-- Name Input -->
+            <div class="form-group">
+                <label class="form-label" for="fullName">
+                    <span>👤</span>
+                    <span>Full Name</span>
+                </label>
+                <input type="text" id="fullName" class="form-input signup" 
+                       placeholder="John Doe" 
+                       required>
+            </div>
+            
+            <!-- Email Input -->
+            <div class="form-group">
+                <label class="form-label" for="email">
+                    <span>📧</span>
+                    <span>Email Address</span>
+                </label>
+                <input type="email" id="email" class="form-input signup" 
+                       placeholder="you@example.com" 
+                       required>
+            </div>
+            
+            <!-- Password Input -->
+            <div class="form-group">
+                <label class="form-label" for="password">
+                    <span>🔒</span>
+                    <span>Password</span>
+                </label>
+                <input type="password" id="password" class="form-input signup" 
+                       placeholder="Create a strong password" 
+                       required
+                       onkeyup="validatePassword()">
+            </div>
+            
+            <!-- Confirm Password Input -->
+            <div class="form-group">
+                <label class="form-label" for="confirmPassword">
+                    <span>🔒</span>
+                    <span>Confirm Password</span>
+                </label>
+                <input type="password" id="confirmPassword" class="form-input signup" 
+                       placeholder="Confirm your password" 
+                       required
+                       onkeyup="validatePassword()">
+            </div>
+            
+            <!-- Password Requirements -->
+            <div class="password-requirements">
+                <h4>Password Requirements:</h4>
+                <ul class="requirements-list" id="passwordRequirements">
+                    <li id="reqLength">
+                        <span>📏</span>
+                        <span>At least 8 characters</span>
+                    </li>
+                    <li id="reqUppercase">
+                        <span>⬆️</span>
+                        <span>One uppercase letter</span>
+                    </li>
+                    <li id="reqLowercase">
+                        <span>⬇️</span>
+                        <span>One lowercase letter</span>
+                    </li>
+                    <li id="reqNumber">
+                        <span>🔢</span>
+                        <span>One number</span>
+                    </li>
+                    <li id="reqSpecial">
+                        <span>✨</span>
+                        <span>One special character</span>
+                    </li>
+                    <li id="reqMatch">
+                        <span>✅</span>
+                        <span>Passwords match</span>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Terms & Conditions -->
+            <div class="terms-group">
+                <input type="checkbox" id="acceptTerms" required>
+                <label for="acceptTerms" class="terms-text">
+                    I agree to the 
+                    <a href="#" class="terms-link" onclick="showTerms()">Terms of Service</a> 
+                    and 
+                    <a href="#" class="terms-link" onclick="showPrivacy()">Privacy Policy</a>.
+                    I understand that this is a demo system.
+                </label>
+            </div>
+            
+            <!-- Sign Up Button -->
+            <button id="signUpBtn" class="auth-btn signup" onclick="handleSignUp()">
+                <span>🚀</span>
+                <span>Create Account</span>
+            </button>
+            
+            <!-- Message Display Area -->
+            <div id="authMessage"></div>
+            
+            <!-- Sign In Link -->
+            <div style="text-align: center; margin-top: 25px;">
+                <span style="color: #64748b;">Already have an account? </span>
+                <a href="signin.html" class="auth-link">Sign in here</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Page initialization
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('✅ Sign up page loaded successfully');
+            
+            // Auto-focus name field
+            const nameInput = document.getElementById('fullName');
+            if (nameInput) {
+                nameInput.focus();
+            }
+            
+            // Setup Enter key navigation
+            setupEnterKeyNavigation();
+        });
+        
+        // Enter key navigation
+        function setupEnterKeyNavigation() {
+            const inputs = [
+                'fullName', 'email', 'password', 'confirmPassword'
+            ];
+            
+            inputs.forEach((inputId, index) => {
+                const input = document.getElementById(inputId);
+                if (input) {
+                    input.addEventListener('keypress', function(e) {
+                        if (e.key === 'Enter') {
+                            if (index < inputs.length - 1) {
+                                document.getElementById(inputs[index + 1])?.focus();
+                            } else {
+                                handleSignUp();
+                            }
+                        }
+                    });
+                }
+            });
+        }
+        
+        // Password validation
+        function validatePassword() {
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            // Check requirements
+            const requirements = {
+                reqLength: password.length >= 8,
+                reqUppercase: /[A-Z]/.test(password),
+                reqLowercase: /[a-z]/.test(password),
+                reqNumber: /\d/.test(password),
+                reqSpecial: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password),
+                reqMatch: password === confirmPassword && password.length > 0
+            };
+            
+            // Update UI for each requirement
+            Object.keys(requirements).forEach(reqId => {
+                const element = document.getElementById(reqId);
+                if (element) {
+                    if (requirements[reqId]) {
+                        element.className = 'requirement-met';
+                    } else {
+                        element.className = 'requirement-not-met';
+                    }
+                }
+            });
+            
+            // Return overall validation status
+            return Object.values(requirements).every(req => req);
+        }
+        
+        // Show message function
+        function showAuthMessage(message, type = 'info') {
+            const messageDiv = document.getElementById('authMessage');
+            if (!messageDiv) return;
+            
+            // Clear existing message
+            messageDiv.innerHTML = '';
+            messageDiv.className = '';
+            
+            // Set message content
+            messageDiv.innerHTML = `
+                <span>${type === 'success' ? '✅' : 
+                        type === 'error' ? '❌' : 
+                        type === 'warning' ? '⚠️' : 'ℹ️'}</span>
+                <span>${message}</span>
+            `;
+            
+            // Add appropriate class
+            messageDiv.classList.add(`message-${type}`);
+            
+            // Auto-remove after 5 seconds (unless success)
+            if (type !== 'success') {
+                setTimeout(() => {
+                    messageDiv.style.opacity = '0';
+                    setTimeout(() => {
+                        messageDiv.innerHTML = '';
+                        messageDiv.className = '';
+                        messageDiv.style.opacity = '1';
+                    }, 300);
+                }, 5000);
+            }
+        }
+        
+        // Show terms modal
+        function showTerms() {
+            alert('📜 Terms of Service\n\nThis is a demo system for educational purposes. All data is stored locally in your browser. No real personal information is required or stored.');
+            return false;
+        }
+        
+        // Show privacy modal
+        function showPrivacy() {
+            alert('🔒 Privacy Policy\n\nYour data is stored locally in your browser. No information is sent to any server. This is a demo system for educational purposes only.');
+            return false;
+        }
+        
+        // Sign Up function
+        window.handleSignUp = async function() {
+            const fullName = document.getElementById('fullName')?.value.trim();
+            const email = document.getElementById('email')?.value.trim();
+            const password = document.getElementById('password')?.value;
+            const confirmPassword = document.getElementById('confirmPassword')?.value;
+            const acceptTerms = document.getElementById('acceptTerms')?.checked;
+            
+            console.log("📝 Sign up attempt with:", { fullName, email, acceptTerms });
+
+            // Validate inputs
+            if (!fullName || !email || !password || !confirmPassword) {
+                showAuthMessage("❌ All fields are required", "error");
+                return;
+            }
+            
+            if (!email.includes('@')) {
+                showAuthMessage("❌ Please enter a valid email address", "error");
+                return;
+            }
+            
+            if (!acceptTerms) {
+                showAuthMessage("❌ Please accept the terms and conditions", "error");
+                return;
+            }
+            
+            // Validate password
+            if (!validatePassword()) {
+                showAuthMessage("❌ Please meet all password requirements", "error");
+                return;
+            }
+
+            // Show loading state
+            const signUpBtn = document.getElementById('signUpBtn');
+            if (signUpBtn) {
+                signUpBtn.innerHTML = '<span class="loading-spinner"></span> Creating account...';
+                signUpBtn.disabled = true;
+            }
+
+            // In a real app, you would call your backend API here
+            // For demo purposes, we'll simulate a successful registration
+            
+            // Create unique user_id from email
+            const USER_ID = email.split('@')[0]
+                .replace(/[^a-zA-Z0-9]/g, '')
+                .toLowerCase();
+            
+            console.log("🆔 Generated user_id:", USER_ID);
+
+            // Store user info in localStorage
+            localStorage.setItem("user_id", USER_ID);
+            localStorage.setItem("user_email", email);
+            localStorage.setItem("user_name", fullName);
+            localStorage.setItem("user_signed_up", "true");
+            
+            console.log("💾 User stored in localStorage:", {
+                user_id: USER_ID,
+                email: email,
+                name: fullName
+            });
+
+            // Show success message
+            showAuthMessage("✅ Account created successfully! Signing you in...", "success");
+            
+            // Redirect to dashboard after 1.5 seconds
+            setTimeout(() => {
+                console.log("➡️ Redirecting to dashboard...");
+                window.location.href = "index.html";
+            }, 1500);
+        };
+    </script>
+</body>
+</html>
