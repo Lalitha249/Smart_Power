@@ -1193,9 +1193,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     
     // Check if we're on login page or dashboard
-    const isLoginPage = window.location.pathname.includes('login.html') || 
-                        window.location.pathname.includes('login') ||
-                        window.location.pathname.includes('signin.html') ||
+    const isLoginPage = window.location.pathname.includes('signin.html') ||
                         window.location.pathname.includes('signup.html') ||
                         window.location.pathname.includes('forgot-password.html');
     
@@ -1306,10 +1304,6 @@ async function loadAllData() {
 /* ============================================================
    GLOBAL EXPORTS (ALL FUNCTIONS)
    ============================================================ */
-// Login functions
-window.handleLogin = handleLogin;
-window.registerUserAPI = registerUserAPI;
-
 // Dashboard functions
 window.selectPlan = selectPlan;
 window.checkBackend = checkBackend;
@@ -1317,7 +1311,7 @@ window.addDailyUsage = addDailyUsage;
 window.showSaveTipsModal = showSaveTipsModal;
 window.claimRewards = claimRewards;
 
-// Logout function - UPDATED FOR NEW AUTH
+// Logout function
 window.handleLogout = function() {
     if (confirm("Are you sure you want to logout?")) {
         localStorage.removeItem('user_id');
@@ -1327,7 +1321,7 @@ window.handleLogout = function() {
         localStorage.removeItem('currentPlan');
         localStorage.removeItem('remember_me');
         
-        // Redirect to signin instead of login
+        // Redirect to signin
         window.location.href = 'signin.html';
     }
 };
@@ -1348,54 +1342,42 @@ window.testLogin = async function() {
 };
 
 /* ============================================================
-   NEW AUTHENTICATION FUNCTIONS - ADDED FOR SIGNIN/SIGNUP
+   AUTHENTICATION FUNCTIONS
    ============================================================ */
 
-// Backward compatible login function
+// Main login function for signin.html
 window.handleLogin = async function() {
-    const email = document.getElementById('email')?.value.trim() || 
-                  document.getElementById('userEmail')?.value.trim();
-    const password = document.getElementById('password')?.value;
-    const name = document.getElementById('name')?.value.trim() || 
-                 document.getElementById('fullName')?.value.trim() || 
-                 "Guest User";
+    const email = document.getElementById('email')?.value?.trim() || 'demo@example.com';
+    const name = document.getElementById('fullName')?.value?.trim() || email.split('@')[0];
     
-    console.log("🔐 Login attempt with:", { email, name });
-
-    if (!email) {
-        showMessage("❌ Email is required", "error");
-        return;
-    }
+    console.log("🔐 Login attempt with:", email);
     
     if (!email.includes('@')) {
-        showMessage("❌ Please enter a valid email address", "error");
+        alert("Please enter a valid email address");
         return;
     }
 
-    // Create unique user_id from email
-    const USER_ID = email.split('@')[0]
-        .replace(/[^a-zA-Z0-9]/g, '')
-        .toLowerCase();
+    // Create user ID from email
+    const USER_ID = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
     
-    console.log("🆔 Generated user_id:", USER_ID);
-
-    // Store user info in localStorage
+    // Store user data
     localStorage.setItem("user_id", USER_ID);
     localStorage.setItem("user_email", email);
     localStorage.setItem("user_name", name);
     
-    console.log("💾 User stored in localStorage:", {
-        user_id: USER_ID,
-        email: email,
-        name: name
-    });
-
+    console.log("✅ Login successful, redirecting...");
+    
+    // Show success message
     showToast("✅ Login successful! Redirecting...", "success");
     
+    // Redirect after 1 second
     setTimeout(() => {
         window.location.href = "index.html";
-    }, 1500);
+    }, 1000);
 };
+
+// Alias for handleLogin (for backward compatibility)
+window.handleSignIn = window.handleLogin;
 
 // Sign up function
 window.handleSignUp = async function() {
